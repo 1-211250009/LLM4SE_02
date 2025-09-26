@@ -22,11 +22,13 @@ class ExportWorker(QThread):
     progress_updated = Signal(int, int, str)  # current, total, filename
     export_finished = Signal(int, int)  # success_count, total_count
     
-    def __init__(self, file_manager: FileManager, export_options: dict):
+    def __init__(self, file_manager: FileManager, export_options: dict, watermark=None, watermark_type='text'):
         super().__init__()
         self.file_manager = file_manager
         self.export_options = export_options
         self.image_processor = ImageProcessor()
+        self.watermark = watermark
+        self.watermark_type = watermark_type
         self.should_stop = False
     
     def run(self):
@@ -58,6 +60,10 @@ class ExportWorker(QThread):
                     self.export_options['suffix'],
                     self.export_options['format']
                 )
+                
+                # 添加水印（如果有）
+                if self.watermark and self.watermark_type == 'text':
+                    image = self.watermark.apply_to_image(image)
                 
                 # 调整图片尺寸（如果需要）
                 if self.export_options['resize_enabled']:
@@ -108,9 +114,11 @@ class ExportWorker(QThread):
 class ExportDialog(QDialog):
     """导出对话框"""
     
-    def __init__(self, file_manager: FileManager, parent=None):
+    def __init__(self, file_manager: FileManager, watermark=None, watermark_type='text', parent=None):
         super().__init__(parent)
         self.file_manager = file_manager
+        self.watermark = watermark
+        self.watermark_type = watermark_type
         self.export_worker = None
         self.init_ui()
     
@@ -371,7 +379,7 @@ class ExportDialog(QDialog):
         self.progress_label.setVisible(True)
         self.progress_bar.setMaximum(self.file_manager.get_selected_count())
         
-        self.export_worker = ExportWorker(self.file_manager, options)
+        self.export_worker = ExportWorker(self.file_manager, options, self.watermark, self.watermark_type)
         self.export_worker.progress_updated.connect(self.on_progress_updated)
         self.export_worker.export_finished.connect(self.on_export_finished)
         self.export_worker.start()

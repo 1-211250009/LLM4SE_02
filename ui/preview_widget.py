@@ -13,6 +13,7 @@ from PySide6.QtCore import Qt, Signal, QSize
 from PySide6.QtGui import QPixmap, QPainter, QFont, QColor
 
 from core.image_processor import ImageProcessor
+from core.watermark import TextWatermark
 
 
 class PreviewLabel(QLabel):
@@ -72,6 +73,8 @@ class PreviewWidget(QWidget):
         self.image_processor = ImageProcessor()
         self.current_image_path = None
         self.current_image = None
+        self.current_watermark = None
+        self.watermark_type = 'text'
         self.init_ui()
     
     def init_ui(self):
@@ -138,13 +141,19 @@ class PreviewWidget(QWidget):
                 self.show_error("图片格式不支持")
                 return
             
+            # 应用水印（如果有）
+            if self.current_watermark and self.watermark_type == 'text':
+                image = self.current_watermark.apply_to_image(image)
+                pixmap = self.pil_to_qpixmap(image)
+            
             # 显示图片
             self.preview_label.set_image(pixmap)
             
             # 更新信息显示
             filename = os.path.basename(image_path)
             size_info = f"{image.size[0]} × {image.size[1]}"
-            self.image_info_label.setText(f"{filename} - {size_info}")
+            watermark_info = " [已添加水印]" if self.current_watermark else ""
+            self.image_info_label.setText(f"{filename} - {size_info}{watermark_info}")
             
         except Exception as e:
             self.show_error(f"加载图片失败: {e}")
@@ -221,3 +230,39 @@ class PreviewWidget(QWidget):
             PIL.Image or None: 当前图片对象
         """
         return self.current_image
+    
+    def set_watermark(self, watermark, watermark_type: str = 'text'):
+        """设置水印
+        
+        Args:
+            watermark: 水印对象
+            watermark_type: 水印类型 ('text' 或 'image')
+        """
+        self.current_watermark = watermark
+        self.watermark_type = watermark_type
+        
+        # 刷新预览
+        if self.current_image_path:
+            self.load_image(self.current_image_path)
+    
+    def clear_watermark(self):
+        """清除水印"""
+        self.current_watermark = None
+        
+        # 刷新预览
+        if self.current_image_path:
+            self.load_image(self.current_image_path)
+    
+    def get_watermarked_image(self):
+        """获取添加水印后的图片
+        
+        Returns:
+            PIL.Image or None: 添加水印后的图片
+        """
+        if not self.current_image:
+            return None
+        
+        if self.current_watermark and self.watermark_type == 'text':
+            return self.current_watermark.apply_to_image(self.current_image)
+        else:
+            return self.current_image.copy()

@@ -15,6 +15,7 @@ from PySide6.QtGui import QAction, QIcon
 from .image_list_widget import ImageListWidget
 from .preview_widget import PreviewWidget
 from .export_dialog import ExportDialog
+from .watermark_control_panel import WatermarkControlPanel
 
 
 class MainWindow(QMainWindow):
@@ -31,8 +32,8 @@ class MainWindow(QMainWindow):
     def init_ui(self):
         """初始化用户界面"""
         self.setWindowTitle("Photo Watermark 2")
-        self.setGeometry(100, 100, 1400, 900)
-        self.setMinimumSize(1000, 600)
+        self.setGeometry(100, 100, 1600, 900)
+        self.setMinimumSize(1200, 700)
         
         # 创建中央部件
         central_widget = QWidget()
@@ -47,43 +48,34 @@ class MainWindow(QMainWindow):
         
         # 左侧：图片列表
         self.image_list_widget = ImageListWidget()
-        self.image_list_widget.setMinimumWidth(350)
-        self.image_list_widget.setMaximumWidth(500)
+        self.image_list_widget.setMinimumWidth(320)
+        self.image_list_widget.setMaximumWidth(450)
         
-        # 右侧：预览和控制面板
-        right_widget = QWidget()
-        right_layout = QVBoxLayout(right_widget)
-        right_layout.setContentsMargins(0, 0, 0, 0)
-        
-        # 预览组件
+        # 中间：预览组件
         self.preview_widget = PreviewWidget()
+        self.preview_widget.setMinimumWidth(400)
         
-        # 临时控制面板占位
-        control_panel = QWidget()
-        control_panel.setFixedHeight(200)
-        control_panel.setStyleSheet("""
-            QWidget {
-                background-color: #f5f5f5;
+        # 右侧：水印控制面板
+        self.watermark_panel = WatermarkControlPanel()
+        self.watermark_panel.setMinimumWidth(300)
+        self.watermark_panel.setMaximumWidth(350)
+        self.watermark_panel.setStyleSheet("""
+            WatermarkControlPanel {
+                background-color: #f9f9f9;
                 border: 1px solid #ddd;
                 border-radius: 4px;
             }
         """)
-        control_label = QLabel("水印控制面板（待开发）")
-        control_label.setAlignment(Qt.AlignCenter)
-        control_label.setStyleSheet("color: #666; font-size: 14px;")
-        control_layout = QVBoxLayout(control_panel)
-        control_layout.addWidget(control_label)
-        
-        right_layout.addWidget(self.preview_widget)
-        right_layout.addWidget(control_panel)
         
         # 添加到分割器
         splitter.addWidget(self.image_list_widget)
-        splitter.addWidget(right_widget)
+        splitter.addWidget(self.preview_widget)
+        splitter.addWidget(self.watermark_panel)
         
         # 设置分割器比例
-        splitter.setStretchFactor(0, 0)  # 左侧固定宽度
-        splitter.setStretchFactor(1, 1)  # 右侧可伸缩
+        splitter.setStretchFactor(0, 0)  # 左侧图片列表固定宽度
+        splitter.setStretchFactor(1, 1)  # 中间预览可伸缩
+        splitter.setStretchFactor(2, 0)  # 右侧水印面板固定宽度
         
         main_layout.addWidget(splitter)
     
@@ -163,6 +155,12 @@ class MainWindow(QMainWindow):
         # 图片列表信号
         self.image_list_widget.image_selected.connect(self.on_image_selected)
         self.image_list_widget.images_dropped.connect(self.on_images_dropped)
+        
+        # 水印控制面板信号
+        self.watermark_panel.watermark_changed.connect(self.on_watermark_changed)
+        
+        # 初始化时应用默认水印
+        self.on_watermark_changed()
     
     def add_images(self):
         """添加图片文件"""
@@ -198,8 +196,12 @@ class MainWindow(QMainWindow):
             QMessageBox.information(self, "提示", "请先选择要导出的图片\n\n提示：点击图片选择，按住Ctrl/Cmd多选，或使用\"全选\"按钮")
             return
         
+        # 获取当前水印
+        watermark = self.watermark_panel.get_current_watermark()
+        watermark_type = self.watermark_panel.get_watermark_type()
+        
         # 打开导出对话框
-        dialog = ExportDialog(file_manager, self)
+        dialog = ExportDialog(file_manager, watermark, watermark_type, self)
         dialog.exec()
     
     def on_image_selected(self, index: int):
@@ -215,6 +217,20 @@ class MainWindow(QMainWindow):
         """文件被拖放"""
         self.image_list_widget.add_images(files)
         self.status_bar.showMessage(f"拖放添加 {len(files)} 个项目")
+    
+    def on_watermark_changed(self):
+        """水印参数改变"""
+        # 获取当前水印
+        watermark = self.watermark_panel.get_current_watermark()
+        watermark_type = self.watermark_panel.get_watermark_type()
+        
+        # 更新预览
+        if watermark:
+            self.preview_widget.set_watermark(watermark, watermark_type)
+            self.status_bar.showMessage("水印已更新")
+        else:
+            self.preview_widget.clear_watermark()
+            self.status_bar.showMessage("水印已清除")
     
     def show_about(self):
         """显示关于信息"""
