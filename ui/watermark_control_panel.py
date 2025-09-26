@@ -667,6 +667,32 @@ class TextWatermarkPanel(QWidget):
             self.x_spinbox.blockSignals(False)
             self.y_spinbox.blockSignals(False)
             self.rotation_slider.blockSignals(False)
+    
+    def update_position_from_preview(self, rel_x, rel_y):
+        """从预览拖拽更新位置"""
+        # 自动切换到自定义位置模式
+        self.custom_mode_radio.setChecked(True)
+        self.on_position_mode_changed()
+        
+        # 将相对位置转换为百分比并更新控件
+        percent_x = int(rel_x * 100)
+        percent_y = int(rel_y * 100)
+        
+        # 临时阻止信号以避免循环触发
+        self.x_spinbox.blockSignals(True)
+        self.y_spinbox.blockSignals(True)
+        
+        self.x_spinbox.setValue(percent_x)
+        self.y_spinbox.setValue(percent_y)
+        
+        self.x_spinbox.blockSignals(False)
+        self.y_spinbox.blockSignals(False)
+        
+        # 更新水印对象位置
+        self.text_watermark.set_position(rel_x, rel_y)
+        
+        # 发送水印变更信号以刷新预览
+        self.watermark_changed.emit()
 
 
 class ImageWatermarkPanel(QWidget):
@@ -1019,6 +1045,32 @@ class ImageWatermarkPanel(QWidget):
             ImageWatermark: 图片水印对象
         """
         return self.image_watermark if self.image_watermark.watermark_image is not None else None
+    
+    def update_position_from_preview(self, rel_x, rel_y):
+        """从预览拖拽更新位置"""
+        # 自动切换到自定义位置模式
+        self.custom_mode_radio.setChecked(True)
+        self.on_position_mode_changed()
+        
+        # 将相对位置转换为百分比并更新控件
+        percent_x = int(rel_x * 100)
+        percent_y = int(rel_y * 100)
+        
+        # 临时阻止信号以避免循环触发
+        self.x_spinbox.blockSignals(True)
+        self.y_spinbox.blockSignals(True)
+        
+        self.x_spinbox.setValue(percent_x)
+        self.y_spinbox.setValue(percent_y)
+        
+        self.x_spinbox.blockSignals(False)
+        self.y_spinbox.blockSignals(False)
+        
+        # 更新水印对象位置
+        self.image_watermark.set_position(rel_x, rel_y)
+        
+        # 发送水印变更信号以刷新预览
+        self.watermark_changed.emit()
 
 
 class WatermarkControlPanel(QWidget):
@@ -1085,3 +1137,11 @@ class WatermarkControlPanel(QWidget):
         """
         current_index = self.tab_widget.currentIndex()
         return 'text' if current_index == 0 else 'image'
+    
+    def update_position_from_preview(self, rel_x, rel_y):
+        """从预览拖拽更新水印位置"""
+        current_index = self.tab_widget.currentIndex()
+        if current_index == 0:  # 文本水印
+            self.text_panel.update_position_from_preview(rel_x, rel_y)
+        else:  # 图片水印
+            self.image_panel.update_position_from_preview(rel_x, rel_y)

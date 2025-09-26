@@ -159,6 +159,9 @@ class MainWindow(QMainWindow):
         # 水印控制面板信号
         self.watermark_panel.watermark_changed.connect(self.on_watermark_changed)
         
+        # 预览窗口拖拽信号
+        self.preview_widget.watermark_position_changed.connect(self.on_watermark_drag_position_changed)
+        
         # 初始化时应用默认水印
         self.on_watermark_changed()
     
@@ -231,6 +234,11 @@ class MainWindow(QMainWindow):
         else:
             self.preview_widget.clear_watermark()
             self.status_bar.showMessage("水印已清除")
+    
+    def on_watermark_drag_position_changed(self, rel_x, rel_y):
+        """处理水印拖拽位置变更"""
+        # 同步到水印控制面板，切换到自定义位置模式
+        self.watermark_panel.update_position_from_preview(rel_x, rel_y)
     
     def show_about(self):
         """显示关于信息"""

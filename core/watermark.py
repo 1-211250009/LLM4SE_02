@@ -17,9 +17,9 @@ class TextWatermark:
     def __init__(self):
         """初始化文本水印"""
         self.text = "Photo Watermark"
-        self.font_size = 24
-        self.font_color = (255, 255, 255, 180)  # RGBA: 白色，透明度180
-        self.position = (0.5, 0.5)  # 相对位置 (0.0-1.0)
+        self.font_size = 60
+        self.font_color = (255, 255, 255, 255)  # RGBA: 白色，100%不透明度
+        self.position = (0.95, 0.95)  # 相对位置 (0.0-1.0) - 右下角
         self.rotation = 0  # 旋转角度
         
         # 新增高级功能属性
@@ -333,8 +333,77 @@ class TextWatermark:
                 return True
         return False
     
+    def _calculate_font_extra_height(self, font: ImageFont.ImageFont, text_height: int) -> int:
+        """根据字体特性自适应计算额外高度
+        
+        Args:
+            font: 字体对象
+            text_height: 文本基础高度
+            
+        Returns:
+            int: 额外需要的高度
+        """
+        # 测试包含descender的字符来检测字体的下降部分
+        test_chars = "gjpqy"
+        
+        try:
+            # 创建临时图像来测量descender高度
+            temp_img = Image.new('RGBA', (1, 1))
+            draw = ImageDraw.Draw(temp_img)
+            
+            # 测量普通字符（如'A'）的高度
+            normal_bbox = draw.textbbox((0, 0), "A", font=font)
+            normal_height = normal_bbox[3] - normal_bbox[1]
+            
+            # 测量带descender字符的高度
+            descender_bbox = draw.textbbox((0, 0), test_chars, font=font)
+            descender_height = descender_bbox[3] - descender_bbox[1]
+            
+            # 计算descender额外高度
+            descender_extra = max(0, descender_height - normal_height)
+            
+            # 如果字体有明显的descender，使用较小的百分比；否则使用较大的百分比
+            if descender_extra > normal_height * 0.1:  # descender超过正常高度的10%
+                # 字体有明显descender，使用30%额外空间
+                extra_ratio = 0.3
+            else:
+                # 字体descender较小或没有，使用50%额外空间以防万一
+                extra_ratio = 0.5
+            
+            # 还要考虑中文字体通常需要更多空间
+            if self._contains_chinese(self.text):
+                extra_ratio += 0.1  # 中文字体额外增加10%
+            
+            # 针对特定字体的微调
+            font_name = getattr(font, 'path', '') or str(font)
+            font_name_lower = font_name.lower()
+            
+            # 检查是否是默认字体（PIL的load_default）
+            is_default_font = (hasattr(font, '_name') and font._name == 'DEFAULT') or 'default' in font_name_lower
+            
+            # 默认字体和苹方需要额外增加
+            if (is_default_font or
+                'pingfang' in font_name_lower or 
+                '苹方' in font_name_lower or
+                'arial' in font_name_lower or
+                '宋体' in font_name_lower):
+                extra_ratio += 0.2
+            
+            # 黑体需要削减
+            elif ('heiti' in font_name_lower or 
+                  '黑体' in font_name_lower or
+                  'simhei' in font_name_lower or
+                  'microsoft yahei' in font_name_lower):
+                extra_ratio -= 0.4
+                
+            return int(text_height * max(0.1, extra_ratio))  # 确保至少有10%的额外空间
+            
+        except Exception:
+            # 如果测量失败，使用默认的50%
+            return int(text_height * 0.5)
+    
     def calculate_text_size(self, font: ImageFont.ImageFont) -> Tuple[int, int]:
-        """计算文本尺寸
+        """计算文本尺寸（考虑所有样式效果）
         
         Args:
             font: 字体对象
@@ -346,10 +415,37 @@ class TextWatermark:
         temp_img = Image.new('RGBA', (1, 1))
         draw = ImageDraw.Draw(temp_img)
         
-        # 获取文本边界框
+        # 获取基础文本边界框
         bbox = draw.textbbox((0, 0), self.text, font=font)
-        width = bbox[2] - bbox[0]
-        height = bbox[3] - bbox[1]
+        base_width = bbox[2] - bbox[0]
+        base_height = bbox[3] - bbox[1]
+        
+        # 根据样式调整尺寸
+        if self.font_bold and self.font_italic:
+            # 粗斜体：需要考虑斜体变换和粗体扩展
+            slant_factor = 0.15
+            max_offset = int(base_height * slant_factor)
+            extra_height = max(30, int(base_height * 0.8))
+            bold_extra = 2
+            
+            width = base_width + max_offset + bold_extra + 10
+            height = base_height + extra_height + bold_extra
+        elif self.font_bold:
+            # 粗体：增加2像素的额外尺寸
+            width = base_width + 2
+            height = base_height + 2
+        elif self.font_italic:
+            # 斜体：需要考虑斜体变换
+            slant_factor = 0.15
+            max_offset = int(base_height * slant_factor)
+            extra_height = max(30, int(base_height * 0.8))
+            
+            width = base_width + max_offset + 10
+            height = base_height + extra_height
+        else:
+            # 普通文本
+            width = base_width
+            height = base_height
         
         return width, height
     
@@ -390,6 +486,10 @@ class TextWatermark:
         img_width, img_height = watermarked_image.size
         x = int((img_width - text_width) * self.position[0])
         y = int((img_height - text_height) * self.position[1])
+        
+        # 确保水印位置在图像范围内（与图片水印保持一致）
+        x = max(0, min(x, img_width - text_width))
+        y = max(0, min(y, img_height - text_height))
         
         # 创建一个单独的透明层来绘制文本和效果
         text_layer = Image.new('RGBA', watermarked_image.size, (0, 0, 0, 0))
@@ -483,15 +583,100 @@ class TextWatermark:
             # 粗斜体效果：先应用斜体变换，再用粗体方法增强
             self._draw_bold_italic_shear(draw, x, y, font)
         elif self.font_bold:
-            # 模拟粗体效果：在周围绘制多次
-            for dx in [-1, 0, 1]:
-                for dy in [-1, 0, 1]:
-                    draw.text((x + dx, y + dy), self.text, font=font, fill=self.font_color)
+            # 模拟粗体效果：在周围绘制多次，使用安全绘制
+            self._draw_safe_bold_text(draw, x, y, font)
         elif self.font_italic:
             # 真正的斜体效果：字体倾斜变形
             self._draw_italic_shear(draw, x, y, font)
         else:
+            # 普通文本也使用安全的绘制方法，确保不会超出边界
+            self._draw_safe_text(draw, x, y, font)
+    
+    def _draw_safe_text(self, draw: ImageDraw.ImageDraw, x: int, y: int, font: ImageFont.ImageFont):
+        """绘制普通文本，采用与斜体完全相同的临时画布模式"""
+        try:
+            # 获取文本尺寸
+            bbox = draw.textbbox((0, 0), self.text, font=font)
+            text_width = bbox[2] - bbox[0]
+            text_height = bbox[3] - bbox[1]
+        except AttributeError:
+            text_width, text_height = (len(self.text) * 10, 20)
+        
+        # 创建临时画布（根据字体自适应计算额外高度）
+        padding = 5
+        # 根据字体特性自适应计算额外高度
+        extra_height = self._calculate_font_extra_height(font, text_height)
+        temp_width = text_width + padding * 2
+        temp_height = text_height + extra_height + padding
+        
+        # 创建临时图像
+        temp_img = Image.new('RGBA', (temp_width, temp_height), (0, 0, 0, 0))
+        temp_draw = ImageDraw.Draw(temp_img)
+        
+        # 在临时图像上绘制文本（参考斜体的位置分布）
+        text_x = padding
+        text_y = extra_height // 3  # 顶部留出1/3的extra空间，底部留出2/3
+        temp_draw.text((text_x, text_y), self.text, font=font, fill=self.font_color)
+        
+        # 计算粘贴位置（模仿斜体的位置计算）
+        paste_x = x - text_x
+        paste_y = y - text_y
+        
+        # 确保粘贴位置不会超出图像边界并执行粘贴（完全模仿斜体的做法）
+        if hasattr(draw, '_image'):
+            main_img = draw._image
+            paste_x = max(0, min(paste_x, main_img.width - temp_width))
+            paste_y = max(0, min(paste_y, main_img.height - temp_height))
+            main_img.paste(temp_img, (paste_x, paste_y), temp_img)
+        else:
+            # 回退方案：直接绘制
             draw.text((x, y), self.text, font=font, fill=self.font_color)
+    
+    def _draw_safe_bold_text(self, draw: ImageDraw.ImageDraw, x: int, y: int, font: ImageFont.ImageFont):
+        """绘制粗体文本，采用与斜体完全相同的临时画布模式"""
+        try:
+            # 获取文本尺寸
+            bbox = draw.textbbox((0, 0), self.text, font=font)
+            text_width = bbox[2] - bbox[0]
+            text_height = bbox[3] - bbox[1]
+        except AttributeError:
+            text_width, text_height = (len(self.text) * 10, 20)
+        
+        # 创建临时画布（根据字体自适应计算额外高度，并容纳粗体扩展）
+        padding = 5
+        bold_extra = 2  # 粗体额外空间
+        # 根据字体特性自适应计算额外高度
+        extra_height = self._calculate_font_extra_height(font, text_height)
+        temp_width = text_width + padding * 2 + bold_extra
+        temp_height = text_height + extra_height + padding + bold_extra
+        
+        # 创建临时图像
+        temp_img = Image.new('RGBA', (temp_width, temp_height), (0, 0, 0, 0))
+        temp_draw = ImageDraw.Draw(temp_img)
+        
+        # 在临时图像上绘制粗体文本（参考斜体的位置分布）
+        text_x = padding
+        text_y = extra_height // 3  # 顶部留出1/3的extra空间，底部留出2/3
+        # 多次绘制模拟粗体效果
+        for dx in [-1, 0, 1]:
+            for dy in [-1, 0, 1]:
+                temp_draw.text((text_x + dx, text_y + dy), self.text, font=font, fill=self.font_color)
+        
+        # 计算粘贴位置（模仿斜体的位置计算）
+        paste_x = x - text_x
+        paste_y = y - text_y
+        
+        # 确保粘贴位置不会超出图像边界并执行粘贴（完全模仿斜体的做法）
+        if hasattr(draw, '_image'):
+            main_img = draw._image
+            paste_x = max(0, min(paste_x, main_img.width - temp_width))
+            paste_y = max(0, min(paste_y, main_img.height - temp_height))
+            main_img.paste(temp_img, (paste_x, paste_y), temp_img)
+        else:
+            # 回退方案：直接绘制粗体
+            for dx in [-1, 0, 1]:
+                for dy in [-1, 0, 1]:
+                    draw.text((x + dx, y + dy), self.text, font=font, fill=self.font_color)
     
     def _draw_italic_text(self, draw: ImageDraw.ImageDraw, x: int, y: int, font: ImageFont.ImageFont):
         """绘制斜体文本（使用图像变换实现真正的斜体效果）
@@ -580,16 +765,16 @@ class TextWatermark:
         max_offset = int(text_height * slant_factor)  # 最大偏移量
         
         # 重新计算临时画布尺寸，确保高度充足
-        # 水平方向：只需要为斜体偏移留出空间
-        temp_width = text_width + max_offset + 10  # 增加一点buffer
+        # 水平方向：只需要为斜体偏移留出空间（去除固定buffer）
+        temp_width = text_width + max_offset
         
         # 垂直方向：确保有足够空间容纳完整文本
         # 为descenders（g, j, p, q, y等）和不同字体的高度变化预留更多空间
-        extra_height = max(30, int(text_height * 0.8))  # 至少30像素或文本高度的80%
+        extra_height = int(text_height * 0.6)  # 文本高度的60%作为额外空间
         temp_height = text_height + extra_height
         
-        # 简化padding，但确保文本不会被裁切
-        text_x = 5   # 左边距
+        # 简化padding，但确保文本不会被裁切（去除固定padding）
+        text_x = 0   # 左边距
         text_y = extra_height // 3  # 顶部留出1/3的extra空间，底部留出2/3
         
         # 创建临时图像
@@ -627,7 +812,7 @@ class TextWatermark:
             # 文本的左上角实际上就是原始文本位置：(text_x, text_y)
             
             # 简单直接的位置映射
-            paste_x = x - text_x
+            paste_x = x
             paste_y = y - text_y
             
             
@@ -663,11 +848,11 @@ class TextWatermark:
         # 精确计算粗斜体画布尺寸
         # 粗体需要少量额外空间（1-2像素的偏移）
         bold_extra = 3  # 粗体额外空间
-        temp_width = text_width + max_offset + bold_extra + 10  # 总宽度控制
+        temp_width = text_width + max_offset + bold_extra  # 总宽度控制
         
         # 垂直方向：确保有足够空间容纳完整文本
         # 为descenders（g, j, p, q, y等）和粗体效果预留更多空间
-        extra_height = max(30, int(text_height * 0.8))  # 至少30像素或文本高度的80%
+        extra_height = int(text_height * 0.6)  # 文本高度的60%作为额外空间
         temp_height = text_height + extra_height + bold_extra  # 总高度控制
         
         # 创建临时图像
@@ -675,7 +860,7 @@ class TextWatermark:
         temp_draw = ImageDraw.Draw(temp_img)
         
         # 先绘制粗体文本（多次偏移绘制）
-        base_x = 5   # 左边距
+        base_x = 0   # 左边距
         base_y = extra_height // 3  # 顶部留出1/3的extra空间，底部留出2/3
         for dx in [-1, 0, 1]:
             for dy in [-1, 0, 1]:
@@ -698,7 +883,7 @@ class TextWatermark:
             
             # 计算正确的粘贴位置（粗斜体）
             # 使用与普通斜体相同的简化逻辑
-            paste_x = x - base_x
+            paste_x = x
             paste_y = y - base_y
             
             # 确保粘贴位置不会超出图像边界并执行粘贴
