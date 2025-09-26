@@ -45,16 +45,23 @@ class ThumbnailLoader(QThread):
                     thumbnail = self.image_processor.create_thumbnail(image)
                     
                     # 转换为QPixmap
-                    from PySide6.QtGui import QImage
-                    if thumbnail.mode == 'RGBA':
-                        data = thumbnail.tobytes('raw', 'RGBA')
-                        qimage = QImage(data, thumbnail.size[0], thumbnail.size[1], QImage.Format_RGBA8888)
-                    else:
-                        thumbnail = thumbnail.convert('RGB')
-                        data = thumbnail.tobytes('raw', 'RGB')
-                        qimage = QImage(data, thumbnail.size[0], thumbnail.size[1], QImage.Format_RGB888)
+                    import io
+                    buffer = io.BytesIO()
                     
-                    pixmap = QPixmap.fromImage(qimage)
+                    # 根据模式选择保存格式
+                    if thumbnail.mode == 'RGBA':
+                        thumbnail.save(buffer, format='PNG')
+                    else:
+                        # 转换为RGB并保存为JPEG
+                        if thumbnail.mode != 'RGB':
+                            thumbnail = thumbnail.convert('RGB')
+                        thumbnail.save(buffer, format='JPEG', quality=85)
+                    
+                    buffer.seek(0)
+                    
+                    # 从字节流创建QPixmap
+                    pixmap = QPixmap()
+                    pixmap.loadFromData(buffer.getvalue())
                     self.thumbnail_ready.emit(i, pixmap)
                 
                 self.progress_updated.emit(i + 1, total)

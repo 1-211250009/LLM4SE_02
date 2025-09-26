@@ -14,6 +14,7 @@ from PySide6.QtGui import QAction, QIcon
 
 from .image_list_widget import ImageListWidget
 from .preview_widget import PreviewWidget
+from .export_dialog import ExportDialog
 
 
 class MainWindow(QMainWindow):
@@ -187,25 +188,15 @@ class MainWindow(QMainWindow):
             self.status_bar.showMessage(f"添加文件夹: {folder}")
     
     def export_images(self):
-        """导出图片（临时功能，阶段1暂时简化）"""
+        """导出图片"""
         file_manager = self.image_list_widget.get_file_manager()
         if file_manager.get_image_count() == 0:
             QMessageBox.warning(self, "警告", "没有可导出的图片")
             return
         
-        output_dir = QFileDialog.getExistingDirectory(
-            self, "选择输出文件夹"
-        )
-        
-        if output_dir:
-            # 验证输出目录
-            is_valid, error_msg = file_manager.validate_output_directory(output_dir)
-            if not is_valid:
-                QMessageBox.warning(self, "警告", error_msg)
-                return
-            
-            QMessageBox.information(self, "提示", 
-                f"导出功能将在后续阶段完善\n选择的输出目录: {output_dir}")
+        # 打开导出对话框
+        dialog = ExportDialog(file_manager, self)
+        dialog.exec()
     
     def on_image_selected(self, index: int):
         """图片被选中"""

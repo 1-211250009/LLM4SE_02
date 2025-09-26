@@ -160,21 +160,28 @@ class PreviewWidget(QWidget):
         """
         try:
             from PySide6.QtGui import QImage
-            if pil_image.mode == 'RGBA':
-                # 处理透明通道
-                data = pil_image.tobytes('raw', 'RGBA')
-                qimage = QImage(data, pil_image.size[0], pil_image.size[1], QImage.Format_RGBA8888)
-            elif pil_image.mode == 'RGB':
-                # RGB图片
-                data = pil_image.tobytes('raw', 'RGB')
-                qimage = QImage(data, pil_image.size[0], pil_image.size[1], QImage.Format_RGB888)
-            else:
-                # 其他格式转换为RGB
-                rgb_image = pil_image.convert('RGB')
-                data = rgb_image.tobytes('raw', 'RGB')
-                qimage = QImage(data, rgb_image.size[0], rgb_image.size[1], QImage.Format_RGB888)
+            import io
             
-            return QPixmap.fromImage(qimage)
+            # 使用临时字节流的方法，这样更可靠
+            buffer = io.BytesIO()
+            
+            # 根据模式选择保存格式
+            if pil_image.mode == 'RGBA':
+                pil_image.save(buffer, format='PNG')
+            else:
+                # 转换为RGB并保存为JPEG
+                if pil_image.mode != 'RGB':
+                    pil_image = pil_image.convert('RGB')
+                pil_image.save(buffer, format='JPEG', quality=95)
+            
+            buffer.seek(0)
+            
+            # 从字节流创建QPixmap
+            pixmap = QPixmap()
+            pixmap.loadFromData(buffer.getvalue())
+            
+            return pixmap
+            
         except Exception as e:
             print(f"转换图片格式失败: {e}")
             return QPixmap()
