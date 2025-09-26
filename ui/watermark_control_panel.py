@@ -8,9 +8,10 @@ Photo Watermark 2 - Watermark Control Panel
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
                                QLineEdit, QSlider, QComboBox, QGroupBox,
                                QSpinBox, QPushButton, QTabWidget, QGridLayout,
-                               QRadioButton, QButtonGroup, QFileDialog, QMessageBox)
+                               QRadioButton, QButtonGroup, QFileDialog, QMessageBox,
+                               QCheckBox, QColorDialog)
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QFont, QPixmap
+from PySide6.QtGui import QFont, QPixmap, QColor
 
 from core.watermark import TextWatermark, ImageWatermark
 
@@ -25,6 +26,7 @@ class TextWatermarkPanel(QWidget):
         super().__init__()
         self.text_watermark = TextWatermark()
         self.init_ui()
+        self.init_fonts()
         self.connect_signals()
         
         # 初始化默认值到控件（确保水印对象和UI同步）
@@ -67,6 +69,122 @@ class TextWatermarkPanel(QWidget):
         
         size_layout.addWidget(self.size_slider)
         size_layout.addWidget(self.size_spinbox)
+        
+        # 字体选择
+        font_group = QGroupBox("字体设置")
+        font_group.setFixedHeight(120)
+        font_layout = QVBoxLayout(font_group)
+        font_layout.setContentsMargins(8, 8, 8, 8)
+        font_layout.setSpacing(4)
+        
+        # 字体家族选择
+        family_layout = QHBoxLayout()
+        family_layout.addWidget(QLabel("字体:"))
+        
+        self.font_combo = QComboBox()
+        self.font_combo.setFixedWidth(150)
+        # 字体列表将在初始化时填充
+        family_layout.addWidget(self.font_combo)
+        family_layout.addStretch()
+        
+        font_layout.addLayout(family_layout)
+        
+        # 字体样式选择
+        style_layout = QHBoxLayout()
+        
+        self.bold_checkbox = QCheckBox("粗体")
+        self.italic_checkbox = QCheckBox("斜体")
+        
+        style_layout.addWidget(self.bold_checkbox)
+        style_layout.addWidget(self.italic_checkbox)
+        style_layout.addStretch()
+        
+        font_layout.addLayout(style_layout)
+        
+        # 文字颜色
+        color_layout = QHBoxLayout()
+        color_layout.addWidget(QLabel("颜色:"))
+        
+        self.color_button = QPushButton()
+        self.color_button.setFixedSize(60, 24)
+        self.color_button.setStyleSheet("background-color: rgb(255, 255, 255); border: 1px solid #999;")
+        self.current_color = QColor(255, 255, 255)
+        
+        color_layout.addWidget(self.color_button)
+        color_layout.addStretch()
+        
+        font_layout.addLayout(color_layout)
+        
+        # 阴影效果
+        shadow_group = QGroupBox("阴影效果")
+        shadow_group.setFixedHeight(80)
+        shadow_layout = QVBoxLayout(shadow_group)
+        shadow_layout.setContentsMargins(8, 8, 8, 8)
+        shadow_layout.setSpacing(4)
+        
+        # 启用阴影复选框
+        self.shadow_checkbox = QCheckBox("启用阴影")
+        shadow_layout.addWidget(self.shadow_checkbox)
+        
+        # 阴影参数
+        shadow_params_layout = QHBoxLayout()
+        
+        shadow_params_layout.addWidget(QLabel("偏移:"))
+        self.shadow_x_spinbox = QSpinBox()
+        self.shadow_x_spinbox.setRange(-20, 20)
+        self.shadow_x_spinbox.setValue(2)
+        self.shadow_x_spinbox.setSuffix("px")
+        self.shadow_x_spinbox.setFixedWidth(55)
+        shadow_params_layout.addWidget(self.shadow_x_spinbox)
+        
+        self.shadow_y_spinbox = QSpinBox()
+        self.shadow_y_spinbox.setRange(-20, 20)
+        self.shadow_y_spinbox.setValue(2)
+        self.shadow_y_spinbox.setSuffix("px")
+        self.shadow_y_spinbox.setFixedWidth(55)
+        shadow_params_layout.addWidget(self.shadow_y_spinbox)
+        
+        shadow_params_layout.addWidget(QLabel("颜色:"))
+        self.shadow_color_button = QPushButton()
+        self.shadow_color_button.setFixedSize(40, 20)
+        self.shadow_color_button.setStyleSheet("background-color: rgb(0, 0, 0); border: 1px solid #999;")
+        self.shadow_current_color = QColor(0, 0, 0)
+        shadow_params_layout.addWidget(self.shadow_color_button)
+        
+        shadow_params_layout.addStretch()
+        shadow_layout.addLayout(shadow_params_layout)
+        
+        # 描边效果
+        stroke_group = QGroupBox("描边效果")
+        stroke_group.setFixedHeight(80)
+        stroke_layout = QVBoxLayout(stroke_group)
+        stroke_layout.setContentsMargins(8, 8, 8, 8)
+        stroke_layout.setSpacing(4)
+        
+        # 启用描边复选框
+        self.stroke_checkbox = QCheckBox("启用描边")
+        stroke_layout.addWidget(self.stroke_checkbox)
+        
+        # 描边参数
+        stroke_params_layout = QHBoxLayout()
+        
+        stroke_params_layout.addWidget(QLabel("宽度:"))
+        self.stroke_width_spinbox = QSpinBox()
+        self.stroke_width_spinbox.setRange(1, 10)
+        self.stroke_width_spinbox.setValue(2)
+        self.stroke_width_spinbox.setSuffix("px")
+        self.stroke_width_spinbox.setFixedWidth(60)
+        stroke_params_layout.addWidget(self.stroke_width_spinbox)
+        
+        stroke_params_layout.addWidget(QLabel("颜色:"))
+        self.stroke_color_button = QPushButton()
+        self.stroke_color_button.setFixedSize(40, 20)
+        self.stroke_color_button.setStyleSheet("background-color: rgb(0, 0, 0); border: 1px solid #999;")
+        self.stroke_current_color = QColor(0, 0, 0)
+        stroke_params_layout.addWidget(self.stroke_color_button)
+        
+        stroke_params_layout.addStretch()
+        stroke_layout.addLayout(stroke_params_layout)
         
         # 不透明度
         opacity_group = QGroupBox("不透明度")
@@ -230,11 +348,21 @@ class TextWatermarkPanel(QWidget):
         # 添加到主布局
         layout.addWidget(text_group)
         layout.addWidget(size_group)
+        layout.addWidget(font_group)
+        layout.addWidget(shadow_group)
+        layout.addWidget(stroke_group)
         layout.addWidget(opacity_group)
         layout.addWidget(position_group)
         layout.addWidget(rotation_group)
         layout.addLayout(button_layout)
         layout.addStretch()
+    
+    def init_fonts(self):
+        """初始化字体列表"""
+        # 从水印对象获取可用字体
+        fonts = self.text_watermark.get_available_fonts()
+        self.font_combo.addItems(fonts)
+        self.font_combo.setCurrentText("默认字体")
     
     def connect_signals(self):
         """连接信号槽"""
@@ -245,6 +373,27 @@ class TextWatermarkPanel(QWidget):
         self.size_slider.valueChanged.connect(self.size_spinbox.setValue)
         self.size_spinbox.valueChanged.connect(self.size_slider.setValue)
         self.size_slider.valueChanged.connect(self.on_size_changed)
+        
+        # 字体选择
+        self.font_combo.currentTextChanged.connect(self.on_font_family_changed)
+        
+        # 字体样式
+        self.bold_checkbox.toggled.connect(self.on_font_style_changed)
+        self.italic_checkbox.toggled.connect(self.on_font_style_changed)
+        
+        # 颜色选择
+        self.color_button.clicked.connect(self.on_color_button_clicked)
+        
+        # 阴影效果
+        self.shadow_checkbox.toggled.connect(self.on_shadow_settings_changed)
+        self.shadow_x_spinbox.valueChanged.connect(self.on_shadow_settings_changed)
+        self.shadow_y_spinbox.valueChanged.connect(self.on_shadow_settings_changed)
+        self.shadow_color_button.clicked.connect(self.on_shadow_color_clicked)
+        
+        # 描边效果
+        self.stroke_checkbox.toggled.connect(self.on_stroke_settings_changed)
+        self.stroke_width_spinbox.valueChanged.connect(self.on_stroke_settings_changed)
+        self.stroke_color_button.clicked.connect(self.on_stroke_color_clicked)
         
         # 不透明度同步
         self.opacity_slider.valueChanged.connect(self.opacity_spinbox.setValue)
@@ -272,12 +421,110 @@ class TextWatermarkPanel(QWidget):
     def on_text_changed(self, text: str):
         """文本改变事件"""
         self.text_watermark.set_text(text)
+        # 更新字体列表以匹配文本内容
+        self.update_font_list_for_text(text)
         self.watermark_changed.emit()
+    
+    def update_font_list_for_text(self, text: str):
+        """根据文本内容更新字体列表"""
+        # 检查是否包含中文
+        contains_chinese = any('\u4e00' <= char <= '\u9fff' for char in text)
+        
+        # 获取适合的字体列表
+        available_fonts = self.text_watermark.get_available_fonts(contains_chinese)
+        
+        # 保存当前选择
+        current_font = self.font_combo.currentText()
+        
+        # 清空并重新填充字体列表
+        self.font_combo.blockSignals(True)
+        self.font_combo.clear()
+        self.font_combo.addItems(available_fonts)
+        
+        # 尝试恢复之前的选择，如果不在新列表中则选择默认字体
+        if current_font in available_fonts:
+            self.font_combo.setCurrentText(current_font)
+        else:
+            self.font_combo.setCurrentText("默认字体")
+            # 如果字体改变了，需要更新水印对象
+            self.text_watermark.set_font_family("默认字体")
+        
+        self.font_combo.blockSignals(False)
     
     def on_size_changed(self, size: int):
         """字体大小改变事件"""
         self.text_watermark.set_font_size(size)
         self.watermark_changed.emit()
+    
+    def on_font_family_changed(self, font_family: str):
+        """字体家族改变事件"""
+        self.text_watermark.set_font_family(font_family)
+        self.watermark_changed.emit()
+    
+    def on_font_style_changed(self):
+        """字体样式改变事件"""
+        bold = self.bold_checkbox.isChecked()
+        italic = self.italic_checkbox.isChecked()
+        self.text_watermark.set_font_style(bold=bold, italic=italic)
+        self.watermark_changed.emit()
+    
+    def on_color_button_clicked(self):
+        """颜色按钮点击事件"""
+        color = QColorDialog.getColor(self.current_color, self, "选择文字颜色")
+        if color.isValid():
+            self.current_color = color
+            # 更新按钮颜色
+            self.color_button.setStyleSheet(
+                f"background-color: rgb({color.red()}, {color.green()}, {color.blue()}); "
+                f"border: 1px solid #999;"
+            )
+            # 更新水印颜色（保持当前透明度）
+            current_alpha = self.text_watermark.font_color[3]
+            new_color = (color.red(), color.green(), color.blue(), current_alpha)
+            self.text_watermark.font_color = new_color
+            self.watermark_changed.emit()
+    
+    def on_shadow_settings_changed(self):
+        """阴影设置改变事件"""
+        enabled = self.shadow_checkbox.isChecked()
+        offset = (self.shadow_x_spinbox.value(), self.shadow_y_spinbox.value())
+        # 使用当前阴影颜色，包含透明度
+        color = (*self.shadow_current_color.getRgb()[:3], 128)  # 固定透明度为128
+        self.text_watermark.set_shadow(enabled, offset, color)
+        self.watermark_changed.emit()
+    
+    def on_shadow_color_clicked(self):
+        """阴影颜色按钮点击事件"""
+        color = QColorDialog.getColor(self.shadow_current_color, self, "选择阴影颜色")
+        if color.isValid():
+            self.shadow_current_color = color
+            self.shadow_color_button.setStyleSheet(
+                f"background-color: rgb({color.red()}, {color.green()}, {color.blue()}); "
+                f"border: 1px solid #999;"
+            )
+            # 更新阴影设置
+            self.on_shadow_settings_changed()
+    
+    def on_stroke_settings_changed(self):
+        """描边设置改变事件"""
+        enabled = self.stroke_checkbox.isChecked()
+        width = self.stroke_width_spinbox.value()
+        # 使用当前描边颜色，完全不透明
+        color = (*self.stroke_current_color.getRgb()[:3], 255)
+        self.text_watermark.set_stroke(enabled, width, color)
+        self.watermark_changed.emit()
+    
+    def on_stroke_color_clicked(self):
+        """描边颜色按钮点击事件"""
+        color = QColorDialog.getColor(self.stroke_current_color, self, "选择描边颜色")
+        if color.isValid():
+            self.stroke_current_color = color
+            self.stroke_color_button.setStyleSheet(
+                f"background-color: rgb({color.red()}, {color.green()}, {color.blue()}); "
+                f"border: 1px solid #999;"
+            )
+            # 更新描边设置
+            self.on_stroke_settings_changed()
     
     def on_opacity_changed(self, value: int):
         """不透明度改变事件"""
@@ -334,6 +581,11 @@ class TextWatermarkPanel(QWidget):
         # 重置到默认值
         self.text_input.setText("Photo Watermark")
         self.size_slider.setValue(24)
+        self.font_combo.setCurrentText("默认字体")
+        self.bold_checkbox.setChecked(False)
+        self.italic_checkbox.setChecked(False)
+        self.current_color = QColor(255, 255, 255)
+        self.color_button.setStyleSheet("background-color: rgb(255, 255, 255); border: 1px solid #999;")
         self.opacity_slider.setValue(70)
         self.preset_mode_radio.setChecked(True)
         self.position_buttons.button(4).setChecked(True)  # 选择中心位置
@@ -359,6 +611,9 @@ class TextWatermarkPanel(QWidget):
         # 暂时断开信号连接，避免循环触发
         self.text_input.blockSignals(True)
         self.size_slider.blockSignals(True)
+        self.font_combo.blockSignals(True)
+        self.bold_checkbox.blockSignals(True)
+        self.italic_checkbox.blockSignals(True)
         self.opacity_slider.blockSignals(True)
         self.opacity_spinbox.blockSignals(True)
         self.x_spinbox.blockSignals(True)
@@ -369,6 +624,18 @@ class TextWatermarkPanel(QWidget):
             # 更新UI控件值
             self.text_input.setText(self.text_watermark.text)
             self.size_slider.setValue(self.text_watermark.font_size)
+            
+            # 更新字体设置
+            self.font_combo.setCurrentText(self.text_watermark.font_family)
+            self.bold_checkbox.setChecked(self.text_watermark.font_bold)
+            self.italic_checkbox.setChecked(self.text_watermark.font_italic)
+            
+            # 更新颜色按钮
+            r, g, b, a = self.text_watermark.font_color
+            self.current_color = QColor(r, g, b)
+            self.color_button.setStyleSheet(
+                f"background-color: rgb({r}, {g}, {b}); border: 1px solid #999;"
+            )
             
             # 计算不透明度百分比（直接使用透明度值）
             opacity = int(self.text_watermark.font_color[3] * 100 / 255)
@@ -392,6 +659,9 @@ class TextWatermarkPanel(QWidget):
             # 恢复信号连接
             self.text_input.blockSignals(False)
             self.size_slider.blockSignals(False)
+            self.font_combo.blockSignals(False)
+            self.bold_checkbox.blockSignals(False)
+            self.italic_checkbox.blockSignals(False)
             self.opacity_slider.blockSignals(False)
             self.opacity_spinbox.blockSignals(False)
             self.x_spinbox.blockSignals(False)
