@@ -111,34 +111,63 @@ class TextWatermarkPanel(QWidget):
         position_layout.addLayout(mode_layout)
         
         # 九宫格位置选择
-        grid_layout = QGridLayout()
-        grid_layout.setSpacing(2)
+        grid_widget = QWidget()
+        grid_widget.setFixedSize(120, 80)
+        grid_layout = QGridLayout(grid_widget)
+        grid_layout.setSpacing(8)
+        grid_layout.setContentsMargins(20, 10, 20, 10)
         
         self.position_buttons = QButtonGroup()
         positions = [
-            ("左上", 0, 0, (0.05, 0.05)),
-            ("上中", 0, 1, (0.5, 0.05)),
-            ("右上", 0, 2, (0.95, 0.05)),
-            ("左中", 1, 0, (0.05, 0.5)),
-            ("中心", 1, 1, (0.5, 0.5)),
-            ("右中", 1, 2, (0.95, 0.5)),
-            ("左下", 2, 0, (0.05, 0.95)),
-            ("下中", 2, 1, (0.5, 0.95)),
-            ("右下", 2, 2, (0.95, 0.95))
+            (0, 0, (0.05, 0.05)),
+            (0, 1, (0.5, 0.05)),
+            (0, 2, (0.95, 0.05)),
+            (1, 0, (0.05, 0.5)),
+            (1, 1, (0.5, 0.5)),
+            (1, 2, (0.95, 0.5)),
+            (2, 0, (0.05, 0.95)),
+            (2, 1, (0.5, 0.95)),
+            (2, 2, (0.95, 0.95))
         ]
         
-        for i, (name, row, col, pos) in enumerate(positions):
-            btn = QPushButton(name)
-            btn.setFixedSize(50, 25)
+        for i, (row, col, pos) in enumerate(positions):
+            btn = QPushButton()
+            btn.setFixedSize(20, 20)
             btn.setCheckable(True)
             btn.position = pos
+            
+            # 设置点状样式
+            btn.setStyleSheet("""
+                QPushButton {
+                    border-radius: 10px;
+                    background-color: #ddd;
+                    border: 2px solid #999;
+                }
+                QPushButton:checked {
+                    background-color: #2196f3;
+                    border: 2px solid #1976d2;
+                }
+                QPushButton:hover {
+                    background-color: #bbb;
+                }
+                QPushButton:checked:hover {
+                    background-color: #1976d2;
+                }
+            """)
+            
             self.position_buttons.addButton(btn, i)
             grid_layout.addWidget(btn, row, col)
             
             if i == 4:  # 默认选择中心
                 btn.setChecked(True)
         
-        position_layout.addLayout(grid_layout)
+        # 将网格居中显示
+        grid_container = QHBoxLayout()
+        grid_container.addStretch()
+        grid_container.addWidget(grid_widget)
+        grid_container.addStretch()
+        
+        position_layout.addLayout(grid_container)
         
         # 自定义位置调整
         custom_layout = QHBoxLayout()

@@ -77,22 +77,37 @@ class TextWatermark:
         Returns:
             ImageFont.ImageFont: 字体对象
         """
-        try:
-            # 尝试使用系统默认字体
-            font = ImageFont.truetype("Arial.ttf", self.font_size)
-        except (OSError, IOError):
-            try:
-                # macOS 系统字体
-                font = ImageFont.truetype("/System/Library/Fonts/Arial.ttf", self.font_size)
-            except (OSError, IOError):
-                try:
-                    # 备用字体
-                    font = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", self.font_size)
-                except (OSError, IOError):
-                    # 使用默认字体
-                    font = ImageFont.load_default()
+        # 支持中文的字体优先级列表
+        font_paths = [
+            # macOS 中文字体
+            "/System/Library/Fonts/PingFang.ttc",  # 苹方，支持中文
+            "/System/Library/Fonts/STHeiti Light.ttc",  # 黑体
+            "/System/Library/Fonts/STSong.ttc",  # 宋体
+            "/System/Library/Fonts/Hiragino Sans GB.ttc",  # 冬青黑体简体中文
+            
+            # 英文字体
+            "/System/Library/Fonts/Arial.ttf",
+            "/System/Library/Fonts/Helvetica.ttc",
+            
+            # Windows 字体（以防在其他系统运行）
+            "C:/Windows/Fonts/simhei.ttf",  # 黑体
+            "C:/Windows/Fonts/simsun.ttf",  # 宋体
+            "C:/Windows/Fonts/arial.ttf",
+        ]
         
-        return font
+        for font_path in font_paths:
+            try:
+                font = ImageFont.truetype(font_path, self.font_size)
+                return font
+            except (OSError, IOError):
+                continue
+        
+        # 如果所有字体都失败，使用默认字体
+        try:
+            return ImageFont.load_default()
+        except:
+            # 如果连默认字体都失败，创建一个简单的字体
+            return ImageFont.load_default()
     
     def calculate_text_size(self, font: ImageFont.ImageFont) -> Tuple[int, int]:
         """计算文本尺寸
@@ -126,6 +141,10 @@ class TextWatermark:
         if not self.text:
             return image.copy()
         
+        # 检查透明度，如果完全透明则不绘制
+        if self.font_color[3] == 0:
+            return image.copy()
+        
         # 创建图像副本
         watermarked_image = image.copy()
         
@@ -139,36 +158,46 @@ class TextWatermark:
         # 计算文本尺寸
         text_width, text_height = self.calculate_text_size(font)
         
+        # 如果文本尺寸为0，返回原图
+        if text_width == 0 or text_height == 0:
+            return watermarked_image
+        
         # 计算水印位置
         img_width, img_height = watermarked_image.size
         x = int((img_width - text_width) * self.position[0])
         y = int((img_height - text_height) * self.position[1])
         
+        # 创建一个单独的透明层来绘制文本
+        text_layer = Image.new('RGBA', watermarked_image.size, (0, 0, 0, 0))
+        
         # 如果需要旋转，创建旋转的文本图像
         if self.rotation != 0:
-            # 创建文本图像
-            text_img = Image.new('RGBA', (text_width * 2, text_height * 2), (0, 0, 0, 0))
+            # 创建文本图像，使用更大的画布以容纳旋转
+            text_canvas_size = max(text_width, text_height) * 3
+            text_img = Image.new('RGBA', (text_canvas_size, text_canvas_size), (0, 0, 0, 0))
             text_draw = ImageDraw.Draw(text_img)
             
             # 在文本图像中心绘制文本
-            text_x = (text_img.width - text_width) // 2
-            text_y = (text_img.height - text_height) // 2
+            text_x = (text_canvas_size - text_width) // 2
+            text_y = (text_canvas_size - text_height) // 2
             text_draw.text((text_x, text_y), self.text, font=font, fill=self.font_color)
             
             # 旋转文本图像
             rotated_text = text_img.rotate(self.rotation, expand=False)
             
-            # 计算旋转后的位置调整
-            rot_width, rot_height = rotated_text.size
-            adj_x = x - (rot_width - text_width) // 2
-            adj_y = y - (rot_height - text_height) // 2
+            # 计算粘贴位置
+            paste_x = x - (text_canvas_size - text_width) // 2
+            paste_y = y - (text_canvas_size - text_height) // 2
             
-            # 粘贴旋转后的文本
-            watermarked_image.paste(rotated_text, (adj_x, adj_y), rotated_text)
+            # 粘贴到文本层
+            text_layer.paste(rotated_text, (paste_x, paste_y), rotated_text)
         else:
-            # 直接在图像上绘制文本
-            draw = ImageDraw.Draw(watermarked_image)
+            # 直接在文本层绘制文本
+            draw = ImageDraw.Draw(text_layer)
             draw.text((x, y), self.text, font=font, fill=self.font_color)
+        
+        # 合并文本层到主图像
+        watermarked_image = Image.alpha_composite(watermarked_image, text_layer)
         
         return watermarked_image
     
