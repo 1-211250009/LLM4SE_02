@@ -231,14 +231,16 @@ class TextWatermark:
 
 
 class ImageWatermark:
-    """图片水印类（为后续功能预留）"""
+    """图片水印类"""
     
     def __init__(self):
         """初始化图片水印"""
         self.watermark_image = None
+        self.original_watermark = None  # 保存原始图片，用于缩放
         self.position = (0.5, 0.5)
-        self.scale = 1.0
-        self.transparency = 0.8
+        self.scale = 1.0  # 缩放比例 (0.1-5.0)
+        self.transparency = 70  # 不透明度 (0-100)
+        self.rotation = 0  # 旋转角度
         
     def load_watermark_image(self, image_path: str) -> bool:
         """加载水印图片
@@ -250,16 +252,129 @@ class ImageWatermark:
             bool: 是否加载成功
         """
         try:
-            self.watermark_image = Image.open(image_path)
-            if self.watermark_image.mode != 'RGBA':
-                self.watermark_image = self.watermark_image.convert('RGBA')
+            self.original_watermark = Image.open(image_path)
+            # 确保为RGBA模式以支持透明通道
+            if self.original_watermark.mode != 'RGBA':
+                self.original_watermark = self.original_watermark.convert('RGBA')
+            
+            # 初始化当前水印图像
+            self.watermark_image = self.original_watermark.copy()
             return True
         except Exception as e:
             print(f"加载水印图片失败: {e}")
             return False
     
+    def set_scale(self, scale: float):
+        """设置缩放比例
+        
+        Args:
+            scale: 缩放比例 (0.1-5.0)
+        """
+        self.scale = max(0.1, min(5.0, scale))
+        self._update_watermark_image()
+    
+    def set_transparency(self, transparency: int):
+        """设置透明度
+        
+        Args:
+            transparency: 不透明度 (0-100)
+        """
+        self.transparency = max(0, min(100, transparency))
+        self._update_watermark_image()
+    
+    def set_position(self, x: float, y: float):
+        """设置水印位置
+        
+        Args:
+            x: 水平位置 (0.0-1.0)
+            y: 垂直位置 (0.0-1.0)
+        """
+        self.position = (max(0.0, min(1.0, x)), max(0.0, min(1.0, y)))
+    
+    def set_rotation(self, angle: float):
+        """设置旋转角度
+        
+        Args:
+            angle: 旋转角度（度）
+        """
+        self.rotation = angle % 360
+        self._update_watermark_image()
+    
+    def _update_watermark_image(self):
+        """更新水印图像（应用缩放、透明度、旋转）"""
+        if self.original_watermark is None:
+            return
+        
+        # 从原始图像开始
+        watermark = self.original_watermark.copy()
+        
+        # 应用缩放
+        if self.scale != 1.0:
+            new_width = int(watermark.width * self.scale)
+            new_height = int(watermark.height * self.scale)
+            watermark = watermark.resize((new_width, new_height), Image.Resampling.BICUBIC)
+        
+        # 应用透明度
+        if self.transparency < 100:
+            # 调整整个图像的alpha通道
+            alpha = watermark.split()[-1]  # 获取alpha通道
+            alpha = alpha.point(lambda p: int(p * self.transparency / 100))
+            watermark.putalpha(alpha)
+        
+        # 应用旋转
+        if abs(self.rotation) > 0.1:
+            try:
+                watermark = watermark.rotate(
+                    self.rotation,
+                    expand=True,  # 扩展画布以容纳旋转后的图像
+                    fillcolor=(0, 0, 0, 0),
+                    resample=Image.Resampling.BICUBIC
+                )
+            except Exception as e:
+                print(f"Warning: 旋转失败，使用NEAREST插值: {e}")
+                try:
+                    watermark = watermark.rotate(
+                        self.rotation,
+                        expand=True,
+                        fillcolor=(0, 0, 0, 0),
+                        resample=Image.Resampling.NEAREST
+                    )
+                except Exception as e2:
+                    print(f"Warning: 旋转完全失败，跳过旋转: {e2}")
+                    # 如果旋转失败，继续使用原图像
+        
+        self.watermark_image = watermark
+    
+    def get_preset_positions(self) -> dict:
+        """获取预设位置
+        
+        Returns:
+            dict: 预设位置字典
+        """
+        return {
+            "左上角": (0.05, 0.05),
+            "上中": (0.5, 0.05),
+            "右上角": (0.95, 0.05),
+            "左中": (0.05, 0.5),
+            "正中心": (0.5, 0.5),
+            "右中": (0.95, 0.5),
+            "左下角": (0.05, 0.95),
+            "下中": (0.5, 0.95),
+            "右下角": (0.95, 0.95)
+        }
+    
+    def set_preset_position(self, position_name: str):
+        """设置预设位置
+        
+        Args:
+            position_name: 位置名称
+        """
+        positions = self.get_preset_positions()
+        if position_name in positions:
+            self.position = positions[position_name]
+    
     def apply_to_image(self, image: Image.Image) -> Image.Image:
-        """将图片水印应用到图像（预留功能）
+        """将图片水印应用到图像
         
         Args:
             image: 原始图像
@@ -267,5 +382,35 @@ class ImageWatermark:
         Returns:
             Image.Image: 添加水印后的图像
         """
-        # 此功能将在阶段3实现
-        return image.copy()
+        if self.watermark_image is None or self.transparency == 0:
+            return image.copy()
+        
+        # 创建图像副本
+        watermarked_image = image.copy()
+        
+        # 确保图像为RGBA模式以支持透明度
+        if watermarked_image.mode != 'RGBA':
+            watermarked_image = watermarked_image.convert('RGBA')
+        
+        # 获取水印尺寸
+        watermark_width, watermark_height = self.watermark_image.size
+        img_width, img_height = watermarked_image.size
+        
+        # 计算水印位置
+        x = int((img_width - watermark_width) * self.position[0])
+        y = int((img_height - watermark_height) * self.position[1])
+        
+        # 确保水印位置在图像范围内
+        x = max(0, min(x, img_width - watermark_width))
+        y = max(0, min(y, img_height - watermark_height))
+        
+        # 创建一个透明层来绘制水印
+        watermark_layer = Image.new('RGBA', watermarked_image.size, (0, 0, 0, 0))
+        
+        # 粘贴水印到透明层
+        watermark_layer.paste(self.watermark_image, (x, y), self.watermark_image)
+        
+        # 合并水印层到主图像
+        watermarked_image = Image.alpha_composite(watermarked_image, watermark_layer)
+        
+        return watermarked_image

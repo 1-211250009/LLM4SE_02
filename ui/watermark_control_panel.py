@@ -8,11 +8,11 @@ Photo Watermark 2 - Watermark Control Panel
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
                                QLineEdit, QSlider, QComboBox, QGroupBox,
                                QSpinBox, QPushButton, QTabWidget, QGridLayout,
-                               QRadioButton, QButtonGroup)
+                               QRadioButton, QButtonGroup, QFileDialog, QMessageBox)
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QFont
+from PySide6.QtGui import QFont, QPixmap
 
-from core.watermark import TextWatermark
+from core.watermark import TextWatermark, ImageWatermark
 
 
 class TextWatermarkPanel(QWidget):
@@ -399,6 +399,358 @@ class TextWatermarkPanel(QWidget):
             self.rotation_slider.blockSignals(False)
 
 
+class ImageWatermarkPanel(QWidget):
+    """图片水印控制面板"""
+    
+    # 信号定义
+    watermark_changed = Signal()  # 水印参数改变
+    
+    def __init__(self):
+        super().__init__()
+        self.image_watermark = ImageWatermark()
+        self.init_ui()
+        self.connect_signals()
+    
+    def init_ui(self):
+        """初始化UI"""
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(8, 8, 8, 8)
+        layout.setSpacing(8)
+        
+        # 图片选择
+        image_group = QGroupBox("水印图片")
+        image_group.setFixedHeight(80)
+        image_layout = QVBoxLayout(image_group)
+        image_layout.setContentsMargins(8, 8, 8, 8)
+        
+        # 文件选择按钮和预览
+        file_layout = QHBoxLayout()
+        
+        self.select_button = QPushButton("选择图片...")
+        self.select_button.setFixedHeight(24)
+        
+        self.preview_label = QLabel("未选择图片")
+        self.preview_label.setStyleSheet("color: #666; font-size: 11px;")
+        self.preview_label.setWordWrap(True)
+        
+        file_layout.addWidget(self.select_button)
+        file_layout.addWidget(self.preview_label)
+        file_layout.addStretch()
+        
+        image_layout.addLayout(file_layout)
+        
+        # 缩放
+        scale_group = QGroupBox("缩放")
+        scale_group.setFixedHeight(60)
+        scale_layout = QHBoxLayout(scale_group)
+        scale_layout.setContentsMargins(8, 8, 8, 8)
+        
+        scale_layout.addWidget(QLabel("大小:"))
+        
+        self.scale_slider = QSlider(Qt.Horizontal)
+        self.scale_slider.setRange(10, 500)  # 0.1x 到 5.0x
+        self.scale_slider.setValue(100)  # 1.0x
+        
+        self.scale_spinbox = QSpinBox()
+        self.scale_spinbox.setRange(10, 500)
+        self.scale_spinbox.setValue(100)
+        self.scale_spinbox.setSuffix("%")
+        self.scale_spinbox.setFixedWidth(70)
+        
+        scale_layout.addWidget(self.scale_slider)
+        scale_layout.addWidget(self.scale_spinbox)
+        
+        # 不透明度
+        opacity_group = QGroupBox("不透明度")
+        opacity_group.setFixedHeight(60)
+        opacity_layout = QHBoxLayout(opacity_group)
+        opacity_layout.setContentsMargins(8, 8, 8, 8)
+        
+        opacity_layout.addWidget(QLabel("不透明度:"))
+        
+        self.opacity_slider = QSlider(Qt.Horizontal)
+        self.opacity_slider.setRange(0, 100)
+        self.opacity_slider.setValue(70)
+        
+        self.opacity_spinbox = QSpinBox()
+        self.opacity_spinbox.setRange(0, 100)
+        self.opacity_spinbox.setValue(70)
+        self.opacity_spinbox.setSuffix("%")
+        self.opacity_spinbox.setFixedWidth(60)
+        
+        opacity_layout.addWidget(self.opacity_slider)
+        opacity_layout.addWidget(self.opacity_spinbox)
+        
+        # 位置设置（复用文本水印的九宫格逻辑）
+        position_group = QGroupBox("水印位置")
+        position_group.setFixedHeight(160)
+        position_layout = QVBoxLayout(position_group)
+        position_layout.setContentsMargins(8, 8, 8, 8)
+        position_layout.setSpacing(4)
+        
+        # 位置模式选择
+        self.position_mode_group = QButtonGroup()
+        
+        mode_layout = QHBoxLayout()
+        self.preset_mode_radio = QRadioButton("预设位置")
+        self.preset_mode_radio.setChecked(True)
+        self.custom_mode_radio = QRadioButton("自定义位置")
+        
+        self.position_mode_group.addButton(self.preset_mode_radio, 0)
+        self.position_mode_group.addButton(self.custom_mode_radio, 1)
+        
+        mode_layout.addWidget(self.preset_mode_radio)
+        mode_layout.addWidget(self.custom_mode_radio)
+        mode_layout.addStretch()
+        
+        position_layout.addLayout(mode_layout)
+        
+        # 九宫格位置选择
+        grid_widget = QWidget()
+        grid_widget.setFixedSize(120, 80)
+        grid_layout = QGridLayout(grid_widget)
+        grid_layout.setSpacing(8)
+        grid_layout.setContentsMargins(20, 10, 20, 10)
+        
+        self.position_buttons = QButtonGroup()
+        positions = [
+            (0, 0, (0.05, 0.05)),
+            (0, 1, (0.5, 0.05)),
+            (0, 2, (0.95, 0.05)),
+            (1, 0, (0.05, 0.5)),
+            (1, 1, (0.5, 0.5)),
+            (1, 2, (0.95, 0.5)),
+            (2, 0, (0.05, 0.95)),
+            (2, 1, (0.5, 0.95)),
+            (2, 2, (0.95, 0.95))
+        ]
+        
+        for i, (row, col, pos) in enumerate(positions):
+            btn = QPushButton()
+            btn.setFixedSize(20, 20)
+            btn.setCheckable(True)
+            btn.position = pos
+            
+            # 设置点状样式
+            btn.setStyleSheet("""
+                QPushButton {
+                    border-radius: 10px;
+                    background-color: #ddd;
+                    border: 2px solid #999;
+                }
+                QPushButton:checked {
+                    background-color: #2196f3;
+                    border: 2px solid #1976d2;
+                }
+                QPushButton:hover {
+                    background-color: #bbb;
+                }
+                QPushButton:checked:hover {
+                    background-color: #1976d2;
+                }
+            """)
+            
+            self.position_buttons.addButton(btn, i)
+            grid_layout.addWidget(btn, row, col)
+            
+            if i == 4:  # 默认选择中心
+                btn.setChecked(True)
+        
+        # 将网格居中显示
+        grid_container = QHBoxLayout()
+        grid_container.addStretch()
+        grid_container.addWidget(grid_widget)
+        grid_container.addStretch()
+        
+        position_layout.addLayout(grid_container)
+        
+        # 自定义位置调整
+        custom_layout = QHBoxLayout()
+        
+        custom_layout.addWidget(QLabel("X:"))
+        self.x_spinbox = QSpinBox()
+        self.x_spinbox.setRange(0, 100)
+        self.x_spinbox.setValue(50)
+        self.x_spinbox.setSuffix("%")
+        self.x_spinbox.setFixedWidth(60)
+        custom_layout.addWidget(self.x_spinbox)
+        
+        custom_layout.addWidget(QLabel("Y:"))
+        self.y_spinbox = QSpinBox()
+        self.y_spinbox.setRange(0, 100)
+        self.y_spinbox.setValue(50)
+        self.y_spinbox.setSuffix("%")
+        self.y_spinbox.setFixedWidth(60)
+        custom_layout.addWidget(self.y_spinbox)
+        
+        custom_layout.addStretch()
+        
+        position_layout.addLayout(custom_layout)
+        
+        # 初始状态设置
+        self.update_position_mode()
+        
+        # 旋转角度
+        rotation_group = QGroupBox("旋转角度")
+        rotation_group.setFixedHeight(60)
+        rotation_layout = QHBoxLayout(rotation_group)
+        rotation_layout.setContentsMargins(8, 8, 8, 8)
+        
+        rotation_layout.addWidget(QLabel("角度:"))
+        
+        self.rotation_slider = QSlider(Qt.Horizontal)
+        self.rotation_slider.setRange(-180, 180)
+        self.rotation_slider.setValue(0)
+        
+        self.rotation_spinbox = QSpinBox()
+        self.rotation_spinbox.setRange(-180, 180)
+        self.rotation_spinbox.setValue(0)
+        self.rotation_spinbox.setSuffix("°")
+        
+        rotation_layout.addWidget(self.rotation_slider)
+        rotation_layout.addWidget(self.rotation_spinbox)
+        
+        # 控制按钮
+        button_layout = QHBoxLayout()
+        
+        self.clear_button = QPushButton("清除图片")
+        self.clear_button.setFixedWidth(80)
+        self.clear_button.setEnabled(False)
+        
+        button_layout.addStretch()
+        button_layout.addWidget(self.clear_button)
+        
+        # 添加到主布局
+        layout.addWidget(image_group)
+        layout.addWidget(scale_group)
+        layout.addWidget(opacity_group)
+        layout.addWidget(position_group)
+        layout.addWidget(rotation_group)
+        layout.addLayout(button_layout)
+        layout.addStretch()
+    
+    def connect_signals(self):
+        """连接信号槽"""
+        # 图片选择
+        self.select_button.clicked.connect(self.select_watermark_image)
+        
+        # 缩放同步
+        self.scale_slider.valueChanged.connect(self.scale_spinbox.setValue)
+        self.scale_spinbox.valueChanged.connect(self.scale_slider.setValue)
+        self.scale_slider.valueChanged.connect(self.on_scale_changed)
+        
+        # 不透明度同步
+        self.opacity_slider.valueChanged.connect(self.opacity_spinbox.setValue)
+        self.opacity_spinbox.valueChanged.connect(self.opacity_slider.setValue)
+        self.opacity_slider.valueChanged.connect(self.on_opacity_changed)
+        
+        # 位置模式
+        self.position_mode_group.buttonClicked.connect(self.on_position_mode_changed)
+        
+        # 位置按钮
+        self.position_buttons.buttonClicked.connect(self.on_position_button_clicked)
+        
+        # 自定义位置
+        self.x_spinbox.valueChanged.connect(self.on_custom_position_changed)
+        self.y_spinbox.valueChanged.connect(self.on_custom_position_changed)
+        
+        # 旋转角度同步
+        self.rotation_slider.valueChanged.connect(self.rotation_spinbox.setValue)
+        self.rotation_spinbox.valueChanged.connect(self.rotation_slider.setValue)
+        self.rotation_slider.valueChanged.connect(self.on_rotation_changed)
+        
+        # 清除按钮
+        self.clear_button.clicked.connect(self.clear_watermark_image)
+    
+    def select_watermark_image(self):
+        """选择水印图片"""
+        file_filter = "图片文件 (*.png *.jpg *.jpeg *.bmp *.tiff *.gif);;PNG 图片 (*.png);;所有文件 (*.*)"
+        file_path, _ = QFileDialog.getOpenFileName(
+            self, "选择水印图片", "", file_filter
+        )
+        
+        if file_path:
+            if self.image_watermark.load_watermark_image(file_path):
+                import os
+                filename = os.path.basename(file_path)
+                self.preview_label.setText(f"已选择: {filename}")
+                self.clear_button.setEnabled(True)
+                self.watermark_changed.emit()
+            else:
+                QMessageBox.warning(self, "错误", "无法加载选择的图片文件")
+    
+    def clear_watermark_image(self):
+        """清除水印图片"""
+        self.image_watermark = ImageWatermark()
+        self.preview_label.setText("未选择图片")
+        self.clear_button.setEnabled(False)
+        self.watermark_changed.emit()
+    
+    def on_scale_changed(self, value: int):
+        """缩放改变事件"""
+        scale = value / 100.0  # 转换为0.1-5.0的比例
+        self.image_watermark.set_scale(scale)
+        self.watermark_changed.emit()
+    
+    def on_opacity_changed(self, value: int):
+        """不透明度改变事件"""
+        self.image_watermark.set_transparency(value)
+        self.watermark_changed.emit()
+    
+    def on_position_mode_changed(self):
+        """位置模式改变事件"""
+        self.update_position_mode()
+    
+    def on_position_button_clicked(self, button):
+        """九宫格位置按钮点击事件"""
+        if self.preset_mode_radio.isChecked():
+            x, y = button.position
+            self.image_watermark.set_position(x, y)
+            
+            # 同步到自定义位置显示
+            self.x_spinbox.setValue(int(x * 100))
+            self.y_spinbox.setValue(int(y * 100))
+            
+            self.watermark_changed.emit()
+    
+    def on_custom_position_changed(self):
+        """自定义位置改变事件"""
+        if self.custom_mode_radio.isChecked():
+            x = self.x_spinbox.value() / 100.0
+            y = self.y_spinbox.value() / 100.0
+            self.image_watermark.set_position(x, y)
+            
+            # 清空九宫格选择
+            for button in self.position_buttons.buttons():
+                button.setChecked(False)
+            
+            self.watermark_changed.emit()
+    
+    def on_rotation_changed(self, angle: int):
+        """旋转角度改变事件"""
+        self.image_watermark.set_rotation(angle)
+        self.watermark_changed.emit()
+    
+    def update_position_mode(self):
+        """更新位置模式显示"""
+        is_preset = self.preset_mode_radio.isChecked()
+        
+        # 启用/禁用对应控件
+        for button in self.position_buttons.buttons():
+            button.setEnabled(is_preset)
+        
+        self.x_spinbox.setEnabled(not is_preset)
+        self.y_spinbox.setEnabled(not is_preset)
+    
+    def get_watermark(self) -> ImageWatermark:
+        """获取当前水印对象
+        
+        Returns:
+            ImageWatermark: 图片水印对象
+        """
+        return self.image_watermark if self.image_watermark.watermark_image is not None else None
+
+
 class WatermarkControlPanel(QWidget):
     """水印控制面板主组件"""
     
@@ -422,21 +774,26 @@ class WatermarkControlPanel(QWidget):
         self.text_panel = TextWatermarkPanel()
         self.tab_widget.addTab(self.text_panel, "文本水印")
         
-        # 图片水印标签页（暂时占位）
-        image_placeholder = QWidget()
-        image_layout = QVBoxLayout(image_placeholder)
-        placeholder_label = QLabel("图片水印功能将在阶段3实现")
-        placeholder_label.setAlignment(Qt.AlignCenter)
-        placeholder_label.setStyleSheet("color: #666; font-size: 14px;")
-        image_layout.addWidget(placeholder_label)
-        
-        self.tab_widget.addTab(image_placeholder, "图片水印")
+        # 图片水印标签页
+        self.image_panel = ImageWatermarkPanel()
+        self.tab_widget.addTab(self.image_panel, "图片水印")
         
         layout.addWidget(self.tab_widget)
     
     def connect_signals(self):
         """连接信号槽"""
         self.text_panel.watermark_changed.connect(self.watermark_changed)
+        self.image_panel.watermark_changed.connect(self.watermark_changed)
+        
+        # 选项卡切换时也发出信号
+        self.tab_widget.currentChanged.connect(self.on_tab_changed)
+        
+        # 初始化时触发一次信号
+        self.watermark_changed.emit()
+    
+    def on_tab_changed(self, index):
+        """选项卡切换事件"""
+        self.watermark_changed.emit()
     
     def get_current_watermark(self):
         """获取当前激活的水印对象
@@ -447,8 +804,8 @@ class WatermarkControlPanel(QWidget):
         current_index = self.tab_widget.currentIndex()
         if current_index == 0:  # 文本水印
             return self.text_panel.get_watermark()
-        else:  # 图片水印（暂未实现）
-            return None
+        else:  # 图片水印
+            return self.image_panel.get_watermark()
     
     def get_watermark_type(self) -> str:
         """获取当前水印类型

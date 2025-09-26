@@ -13,7 +13,7 @@ from PySide6.QtCore import Qt, Signal, QSize
 from PySide6.QtGui import QPixmap, QPainter, QFont, QColor
 
 from core.image_processor import ImageProcessor
-from core.watermark import TextWatermark
+from core.watermark import TextWatermark, ImageWatermark
 
 
 class PreviewLabel(QLabel):
@@ -142,7 +142,7 @@ class PreviewWidget(QWidget):
                 return
             
             # 应用水印（如果有）
-            if self.current_watermark and self.watermark_type == 'text':
+            if self.current_watermark:
                 image = self.current_watermark.apply_to_image(image)
                 pixmap = self.pil_to_qpixmap(image)
             
