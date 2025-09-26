@@ -173,8 +173,22 @@ class ImageListWidget(QWidget):
         title_label = QLabel("图片列表")
         title_label.setStyleSheet("font-size: 14px; font-weight: bold; color: #333;")
         
-        self.count_label = QLabel("0 张图片")
-        self.count_label.setStyleSheet("color: #666; font-size: 12px;")
+        # 创建计数信息的垂直布局
+        count_widget = QWidget()
+        count_layout = QVBoxLayout(count_widget)
+        count_layout.setContentsMargins(0, 0, 0, 0)
+        count_layout.setSpacing(0)
+        
+        self.total_count_label = QLabel("0 张图片")
+        self.total_count_label.setStyleSheet("color: #666; font-size: 12px;")
+        self.total_count_label.setAlignment(Qt.AlignRight)
+        
+        self.selection_count_label = QLabel("未选中图片")
+        self.selection_count_label.setStyleSheet("color: #999; font-size: 11px;")
+        self.selection_count_label.setAlignment(Qt.AlignRight)
+        
+        count_layout.addWidget(self.total_count_label)
+        count_layout.addWidget(self.selection_count_label)
         
         # 选择控制按钮
         select_all_btn = QPushButton("全选")
@@ -191,7 +205,7 @@ class ImageListWidget(QWidget):
         
         header_layout.addWidget(title_label)
         header_layout.addStretch()
-        header_layout.addWidget(self.count_label)
+        header_layout.addWidget(count_widget)
         header_layout.addWidget(select_all_btn)
         header_layout.addWidget(clear_selection_btn)
         header_layout.addWidget(self.clear_button)
@@ -384,10 +398,16 @@ class ImageListWidget(QWidget):
         total_count = self.file_manager.get_image_count()
         selected_count = self.file_manager.get_selected_count()
         
+        # 更新总数标签
+        self.total_count_label.setText(f"{total_count} 张图片")
+        
+        # 更新选中状态标签
         if selected_count > 0:
-            self.count_label.setText(f"{total_count} 张图片 (已选择 {selected_count} 张)")
+            self.selection_count_label.setText(f"已选 {selected_count} 张")
+            self.selection_count_label.setStyleSheet("color: #2196f3; font-size: 11px;")  # 蓝色表示有选中
         else:
-            self.count_label.setText(f"{total_count} 张图片")
+            self.selection_count_label.setText("未选中图片")
+            self.selection_count_label.setStyleSheet("color: #999; font-size: 11px;")  # 灰色表示未选中
     
     def get_file_manager(self) -> FileManager:
         """获取文件管理器"""
