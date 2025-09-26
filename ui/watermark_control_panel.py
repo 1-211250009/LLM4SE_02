@@ -80,11 +80,14 @@ class TextWatermarkPanel(QWidget):
         self.opacity_slider.setRange(0, 100)
         self.opacity_slider.setValue(70)
         
-        self.opacity_label = QLabel("70%")
-        self.opacity_label.setMinimumWidth(40)
+        self.opacity_spinbox = QSpinBox()
+        self.opacity_spinbox.setRange(0, 100)
+        self.opacity_spinbox.setValue(70)
+        self.opacity_spinbox.setSuffix("%")
+        self.opacity_spinbox.setFixedWidth(60)
         
         opacity_layout.addWidget(self.opacity_slider)
-        opacity_layout.addWidget(self.opacity_label)
+        opacity_layout.addWidget(self.opacity_spinbox)
         
         # 位置设置
         position_group = QGroupBox("水印位置")
@@ -243,7 +246,9 @@ class TextWatermarkPanel(QWidget):
         self.size_spinbox.valueChanged.connect(self.size_slider.setValue)
         self.size_slider.valueChanged.connect(self.on_size_changed)
         
-        # 不透明度
+        # 不透明度同步
+        self.opacity_slider.valueChanged.connect(self.opacity_spinbox.setValue)
+        self.opacity_spinbox.valueChanged.connect(self.opacity_slider.setValue)
         self.opacity_slider.valueChanged.connect(self.on_opacity_changed)
         
         # 位置模式
@@ -276,7 +281,6 @@ class TextWatermarkPanel(QWidget):
     
     def on_opacity_changed(self, value: int):
         """不透明度改变事件"""
-        self.opacity_label.setText(f"{value}%")
         self.text_watermark.set_transparency(value)  # 现在value就是不透明度
         self.watermark_changed.emit()
     
@@ -356,6 +360,7 @@ class TextWatermarkPanel(QWidget):
         self.text_input.blockSignals(True)
         self.size_slider.blockSignals(True)
         self.opacity_slider.blockSignals(True)
+        self.opacity_spinbox.blockSignals(True)
         self.x_spinbox.blockSignals(True)
         self.y_spinbox.blockSignals(True)
         self.rotation_slider.blockSignals(True)
@@ -388,6 +393,7 @@ class TextWatermarkPanel(QWidget):
             self.text_input.blockSignals(False)
             self.size_slider.blockSignals(False)
             self.opacity_slider.blockSignals(False)
+            self.opacity_spinbox.blockSignals(False)
             self.x_spinbox.blockSignals(False)
             self.y_spinbox.blockSignals(False)
             self.rotation_slider.blockSignals(False)
