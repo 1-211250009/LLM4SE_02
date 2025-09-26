@@ -17,6 +17,7 @@ class FileManager:
         """初始化文件管理器"""
         self.image_processor = ImageProcessor()
         self.loaded_images = []  # 存储已加载的图片信息
+        self.selected_indices = set()  # 存储选中的图片索引
     
     def add_single_image(self, file_path: str) -> bool:
         """添加单张图片
@@ -123,6 +124,7 @@ class FileManager:
     def clear_all_images(self):
         """清空所有已加载的图片"""
         self.loaded_images.clear()
+        self.selected_indices.clear()
     
     def get_image_list(self) -> List[dict]:
         """获取已加载的图片列表
@@ -204,3 +206,75 @@ class FileManager:
         formats.append("所有文件 (*.*)")
         
         return ";;".join(formats)
+    
+    def set_selected(self, index: int, selected: bool = True):
+        """设置图片选中状态
+        
+        Args:
+            index: 图片索引
+            selected: 是否选中
+        """
+        if 0 <= index < len(self.loaded_images):
+            if selected:
+                self.selected_indices.add(index)
+            else:
+                self.selected_indices.discard(index)
+    
+    def toggle_selected(self, index: int):
+        """切换图片选中状态
+        
+        Args:
+            index: 图片索引
+        """
+        if 0 <= index < len(self.loaded_images):
+            if index in self.selected_indices:
+                self.selected_indices.remove(index)
+            else:
+                self.selected_indices.add(index)
+    
+    def is_selected(self, index: int) -> bool:
+        """检查图片是否选中
+        
+        Args:
+            index: 图片索引
+            
+        Returns:
+            bool: 是否选中
+        """
+        return index in self.selected_indices
+    
+    def get_selected_indices(self) -> List[int]:
+        """获取所有选中的图片索引
+        
+        Returns:
+            List[int]: 选中的索引列表
+        """
+        return sorted(list(self.selected_indices))
+    
+    def get_selected_images(self) -> List[dict]:
+        """获取所有选中的图片信息
+        
+        Returns:
+            List[dict]: 选中的图片信息列表
+        """
+        selected_images = []
+        for index in sorted(self.selected_indices):
+            if 0 <= index < len(self.loaded_images):
+                selected_images.append(self.loaded_images[index])
+        return selected_images
+    
+    def select_all(self):
+        """全选所有图片"""
+        self.selected_indices = set(range(len(self.loaded_images)))
+    
+    def clear_selection(self):
+        """清空选择"""
+        self.selected_indices.clear()
+    
+    def get_selected_count(self) -> int:
+        """获取选中图片数量
+        
+        Returns:
+            int: 选中的图片数量
+        """
+        return len(self.selected_indices)

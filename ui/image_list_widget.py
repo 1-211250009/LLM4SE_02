@@ -176,37 +176,55 @@ class ImageListWidget(QWidget):
         self.count_label = QLabel("0 张图片")
         self.count_label.setStyleSheet("color: #666; font-size: 12px;")
         
+        # 选择控制按钮
+        select_all_btn = QPushButton("全选")
+        select_all_btn.setFixedSize(50, 24)
+        select_all_btn.clicked.connect(self.select_all_images)
+        
+        clear_selection_btn = QPushButton("取消选择")
+        clear_selection_btn.setFixedSize(70, 24)
+        clear_selection_btn.clicked.connect(self.clear_selection)
+        
         self.clear_button = QPushButton("清空")
-        self.clear_button.setFixedSize(60, 24)
+        self.clear_button.setFixedSize(50, 24)
         self.clear_button.clicked.connect(self.clear_all_images)
         
         header_layout.addWidget(title_label)
         header_layout.addStretch()
         header_layout.addWidget(self.count_label)
+        header_layout.addWidget(select_all_btn)
+        header_layout.addWidget(clear_selection_btn)
         header_layout.addWidget(self.clear_button)
         
         # 图片列表
         self.image_list = QListWidget()
-        self.image_list.setAlternatingRowColors(True)
+        self.image_list.setAlternatingRowColors(False)  # 关闭交替行颜色
         self.image_list.setStyleSheet("""
             QListWidget {
                 border: 1px solid #ddd;
                 border-radius: 4px;
                 background-color: white;
+                outline: none;
             }
             QListWidget::item {
                 border-bottom: 1px solid #eee;
                 padding: 2px;
+                background-color: transparent;
             }
             QListWidget::item:selected {
                 background-color: #e3f2fd;
-                border: 1px solid #2196f3;
+                border: 2px solid #2196f3;
+                border-radius: 4px;
             }
-            QListWidget::item:hover {
+            QListWidget::item:hover:!selected {
                 background-color: #f5f5f5;
             }
         """)
-        self.image_list.itemClicked.connect(self.on_item_selected)
+        # 设置选择模式为扩展选择（支持多选）
+        from PySide6.QtWidgets import QAbstractItemView
+        self.image_list.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        self.image_list.itemClicked.connect(self.on_item_clicked)
+        self.image_list.itemSelectionChanged.connect(self.on_selection_changed)
         
         # 进度条
         self.progress_bar = QProgressBar()
@@ -265,7 +283,7 @@ class ImageListWidget(QWidget):
         images = self.file_manager.get_image_list()
         
         # 更新数量显示
-        self.count_label.setText(f"{len(images)} 张图片")
+        self.update_count_label()
         
         # 添加列表项
         for i, img_info in enumerate(images):
@@ -312,10 +330,27 @@ class ImageListWidget(QWidget):
         self.progress_bar.setValue(current)
         self.progress_bar.setFormat(f"加载缩略图 {current}/{total}")
     
-    def on_item_selected(self, item: QListWidgetItem):
-        """列表项被选中"""
+    def on_item_clicked(self, item: QListWidgetItem):
+        """列表项被点击"""
         index = self.image_list.row(item)
         self.image_selected.emit(index)
+    
+    def on_selection_changed(self):
+        """选择状态改变"""
+        # 同步选中状态到文件管理器
+        self.file_manager.clear_selection()
+        for item in self.image_list.selectedItems():
+            index = self.image_list.row(item)
+            self.file_manager.set_selected(index, True)
+        
+        # 更新计数显示
+        self.update_count_label()
+        
+        # 如果有选中项，预览第一个选中的图片
+        selected_items = self.image_list.selectedItems()
+        if selected_items:
+            first_selected_index = self.image_list.row(selected_items[0])
+            self.image_selected.emit(first_selected_index)
     
     def clear_all_images(self):
         """清空所有图片"""
@@ -333,6 +368,26 @@ class ImageListWidget(QWidget):
             
             self.file_manager.clear_all_images()
             self.refresh_list()
+    
+    def select_all_images(self):
+        """全选所有图片"""
+        self.image_list.selectAll()
+    
+    def clear_selection(self):
+        """清空选择"""
+        self.image_list.clearSelection()
+        self.file_manager.clear_selection()
+        self.update_count_label()
+    
+    def update_count_label(self):
+        """更新计数标签"""
+        total_count = self.file_manager.get_image_count()
+        selected_count = self.file_manager.get_selected_count()
+        
+        if selected_count > 0:
+            self.count_label.setText(f"{total_count} 张图片 (已选择 {selected_count} 张)")
+        else:
+            self.count_label.setText(f"{total_count} 张图片")
     
     def get_file_manager(self) -> FileManager:
         """获取文件管理器"""

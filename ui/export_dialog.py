@@ -31,7 +31,8 @@ class ExportWorker(QThread):
     
     def run(self):
         """执行导出任务"""
-        images = self.file_manager.get_image_list()
+        # 只导出选中的图片
+        images = self.file_manager.get_selected_images()
         total = len(images)
         success_count = 0
         
@@ -340,8 +341,8 @@ class ExportDialog(QDialog):
     
     def start_export(self):
         """开始导出"""
-        if self.file_manager.get_image_count() == 0:
-            QMessageBox.warning(self, "警告", "没有可导出的图片")
+        if self.file_manager.get_selected_count() == 0:
+            QMessageBox.warning(self, "警告", "请先选择要导出的图片")
             return
         
         options = self.get_export_options()
@@ -368,7 +369,7 @@ class ExportDialog(QDialog):
         self.export_btn.setEnabled(False)
         self.progress_bar.setVisible(True)
         self.progress_label.setVisible(True)
-        self.progress_bar.setMaximum(self.file_manager.get_image_count())
+        self.progress_bar.setMaximum(self.file_manager.get_selected_count())
         
         self.export_worker = ExportWorker(self.file_manager, options)
         self.export_worker.progress_updated.connect(self.on_progress_updated)

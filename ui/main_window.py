@@ -194,6 +194,10 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "警告", "没有可导出的图片")
             return
         
+        if file_manager.get_selected_count() == 0:
+            QMessageBox.information(self, "提示", "请先选择要导出的图片\n\n提示：点击图片选择，按住Ctrl/Cmd多选，或使用\"全选\"按钮")
+            return
+        
         # 打开导出对话框
         dialog = ExportDialog(file_manager, self)
         dialog.exec()
