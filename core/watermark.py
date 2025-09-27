@@ -968,8 +968,20 @@ class ImageWatermark:
             # 保存图片路径
             self.image_path = image_path
             return True
+        except FileNotFoundError:
+            print(f"错误: 水印图片文件不存在 - {image_path}")
+            return False
+        except PermissionError:
+            print(f"错误: 没有权限访问水印图片 - {image_path}")
+            return False
         except Exception as e:
-            print(f"加载水印图片失败: {e}")
+            error_msg = str(e)
+            if "cannot identify image file" in error_msg.lower():
+                print(f"错误: 不支持的图片格式 - {image_path}")
+            elif "truncated" in error_msg.lower():
+                print(f"错误: 图片文件损坏 - {image_path}")
+            else:
+                print(f"错误: 加载水印图片失败 - {image_path}: {error_msg}")
             return False
     
     def set_scale(self, scale: float):

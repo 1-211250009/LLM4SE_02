@@ -172,8 +172,15 @@ class FileManager:
         if not os.path.exists(output_dir):
             try:
                 os.makedirs(output_dir)
+            except PermissionError:
+                return False, "没有权限创建输出目录"
+            except OSError as e:
+                if "No space left on device" in str(e):
+                    return False, "磁盘空间不足，无法创建目录"
+                else:
+                    return False, f"创建目录失败: {e}"
             except Exception as e:
-                return False, f"无法创建输出目录: {e}"
+                return False, f"创建输出目录时发生未知错误: {e}"
         
         if not os.path.isdir(output_dir):
             return False, "输出路径不是有效的目录"

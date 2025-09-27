@@ -64,8 +64,20 @@ class ImageProcessor:
                 image = image.convert('RGB')
                 
             return image
+        except FileNotFoundError:
+            print(f"错误: 文件不存在 - {file_path}")
+            return None
+        except PermissionError:
+            print(f"错误: 没有权限访问文件 - {file_path}")
+            return None
         except Exception as e:
-            print(f"加载图片失败 {file_path}: {e}")
+            error_msg = str(e)
+            if "cannot identify image file" in error_msg.lower():
+                print(f"错误: 不支持的图片格式 - {file_path}")
+            elif "truncated" in error_msg.lower():
+                print(f"错误: 图片文件损坏 - {file_path}")
+            else:
+                print(f"错误: 加载图片失败 - {file_path}: {error_msg}")
             return None
     
     def get_image_info(self, file_path: str) -> Optional[dict]:
@@ -93,8 +105,18 @@ class ImageProcessor:
                 'file_size': file_size,
                 'has_transparency': image.mode in ('RGBA', 'LA') or 'transparency' in image.info
             }
+        except FileNotFoundError:
+            print(f"错误: 文件不存在 - {file_path}")
+            return None
+        except PermissionError:
+            print(f"错误: 没有权限访问文件 - {file_path}")
+            return None
         except Exception as e:
-            print(f"获取图片信息失败 {file_path}: {e}")
+            error_msg = str(e)
+            if "cannot identify image file" in error_msg.lower():
+                print(f"错误: 不支持的图片格式 - {file_path}")
+            else:
+                print(f"错误: 获取图片信息失败 - {file_path}: {error_msg}")
             return None
     
     def create_thumbnail(self, image: Image.Image, size: Tuple[int, int] = (150, 150)) -> Image.Image:
@@ -155,8 +177,21 @@ class ImageProcessor:
             
             return True
             
+        except PermissionError:
+            print(f"错误: 没有权限写入文件 - {output_path}")
+            return False
+        except OSError as e:
+            if "No space left on device" in str(e):
+                print(f"错误: 磁盘空间不足 - {output_path}")
+            else:
+                print(f"错误: 文件系统错误 - {output_path}: {e}")
+            return False
         except Exception as e:
-            print(f"保存图片失败 {output_path}: {e}")
+            error_msg = str(e)
+            if "cannot write mode" in error_msg.lower():
+                print(f"错误: 不支持的输出格式 - {output_path}")
+            else:
+                print(f"错误: 保存图片失败 - {output_path}: {error_msg}")
             return False
     
     def generate_output_filename(self, original_path: str, output_dir: str,

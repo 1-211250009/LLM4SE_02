@@ -446,8 +446,18 @@ class PreviewWidget(QWidget):
             watermark_info = " [已添加水印]" if self.current_watermark else ""
             self.image_info_label.setText(f"{filename} - {size_info}{watermark_info}")
             
+        except FileNotFoundError:
+            self.show_error(f"错误: 文件不存在 - {image_path}")
+        except PermissionError:
+            self.show_error(f"错误: 没有权限访问文件 - {image_path}")
         except Exception as e:
-            self.show_error(f"加载图片失败: {e}")
+            error_msg = str(e)
+            if "cannot identify image file" in error_msg.lower():
+                self.show_error(f"错误: 不支持的图片格式 - {os.path.basename(image_path)}")
+            elif "truncated" in error_msg.lower():
+                self.show_error(f"错误: 图片文件损坏 - {os.path.basename(image_path)}")
+            else:
+                self.show_error(f"错误: 加载图片失败 - {os.path.basename(image_path)}: {error_msg}")
     
     def pil_to_qpixmap(self, pil_image) -> QPixmap:
         """将PIL图片转换为QPixmap
@@ -483,7 +493,11 @@ class PreviewWidget(QWidget):
             return pixmap
             
         except Exception as e:
-            print(f"转换图片格式失败: {e}")
+            error_msg = str(e)
+            if "insufficient memory" in error_msg.lower():
+                print(f"错误: 内存不足，无法转换图片格式")
+            else:
+                print(f"错误: 转换图片格式失败: {error_msg}")
             return QPixmap()
     
     def show_error(self, message: str):

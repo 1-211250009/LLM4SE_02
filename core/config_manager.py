@@ -62,8 +62,17 @@ class ConfigManager:
                 json.dump(template_data, f, ensure_ascii=False, indent=2)
             
             return True
+        except PermissionError:
+            print(f"错误: 没有权限保存模板到 {self.templates_dir}")
+            return False
+        except OSError as e:
+            if "No space left on device" in str(e):
+                print(f"错误: 磁盘空间不足，无法保存模板")
+            else:
+                print(f"错误: 文件系统错误，保存模板失败: {e}")
+            return False
         except Exception as e:
-            print(f"保存模板失败: {e}")
+            print(f"错误: 保存模板失败: {e}")
             return False
     
     def load_template(self, template_name: str) -> Optional[Dict[str, Any]]:
@@ -84,8 +93,17 @@ class ConfigManager:
             
             with open(template_file, 'r', encoding='utf-8') as f:
                 return json.load(f)
+        except FileNotFoundError:
+            print(f"错误: 模板文件不存在 - {template_name}")
+            return None
+        except PermissionError:
+            print(f"错误: 没有权限读取模板文件 - {template_name}")
+            return None
+        except json.JSONDecodeError:
+            print(f"错误: 模板文件格式错误 - {template_name}")
+            return None
         except Exception as e:
-            print(f"加载模板失败: {e}")
+            print(f"错误: 加载模板失败 - {template_name}: {e}")
             return None
     
     def get_template_list(self) -> List[Dict[str, str]]:
