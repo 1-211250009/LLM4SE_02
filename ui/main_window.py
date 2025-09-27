@@ -28,6 +28,9 @@ class MainWindow(QMainWindow):
         self.setup_toolbar()
         self.setup_statusbar()
         self.connect_signals()
+        
+        # 加载上次的设置
+        self.load_last_settings()
     
     def init_ui(self):
         """初始化用户界面"""
@@ -249,8 +252,25 @@ class MainWindow(QMainWindow):
             "支持格式: JPEG, PNG, BMP, TIFF\n"
             "支持文本和图片水印")
     
+    def load_last_settings(self):
+        """加载上次的设置"""
+        try:
+            self.watermark_panel.load_last_settings()
+        except Exception as e:
+            print(f"加载上次设置失败: {e}")
+    
+    def save_last_settings(self):
+        """保存当前设置"""
+        try:
+            self.watermark_panel.save_last_settings()
+        except Exception as e:
+            print(f"保存设置失败: {e}")
+    
     def closeEvent(self, event):
         """窗口关闭事件"""
+        # 保存当前设置
+        self.save_last_settings()
+        
         # 停止缩略图加载线程
         if hasattr(self.image_list_widget, 'thumbnail_loader'):
             loader = self.image_list_widget.thumbnail_loader

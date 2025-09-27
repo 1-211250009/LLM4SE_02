@@ -944,8 +944,9 @@ class ImageWatermark:
         self.original_watermark = None  # 保存原始图片，用于缩放
         self.position = (0.5, 0.5)
         self.scale = 1.0  # 缩放比例 (0.1-5.0)
-        self.transparency = 70  # 不透明度 (0-100)
+        self.transparency = 100  # 不透明度 (0-100)
         self.rotation = 0  # 旋转角度
+        self.image_path = ""  # 图片路径，用于配置保存
         
     def load_watermark_image(self, image_path: str) -> bool:
         """加载水印图片
@@ -964,6 +965,8 @@ class ImageWatermark:
             
             # 初始化当前水印图像
             self.watermark_image = self.original_watermark.copy()
+            # 保存图片路径
+            self.image_path = image_path
             return True
         except Exception as e:
             print(f"加载水印图片失败: {e}")

@@ -9,11 +9,13 @@ from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
                                QLineEdit, QSlider, QComboBox, QGroupBox,
                                QSpinBox, QPushButton, QTabWidget, QGridLayout,
                                QRadioButton, QButtonGroup, QFileDialog, QMessageBox,
-                               QCheckBox, QColorDialog)
+                               QCheckBox, QColorDialog, QFrame, QDialog)
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QFont, QPixmap, QColor
 
 from core.watermark import TextWatermark, ImageWatermark
+from core.config_manager import ConfigManager
+from .template_dialog import TemplateDialog, SaveTemplateDialog
 
 
 class TextWatermarkPanel(QWidget):
@@ -36,13 +38,13 @@ class TextWatermarkPanel(QWidget):
         """初始化UI"""
         layout = QVBoxLayout(self)
         layout.setContentsMargins(8, 8, 8, 8)
-        layout.setSpacing(8)
+        layout.setSpacing(6)
         
         # 文本输入
         text_group = QGroupBox("水印文本")
-        text_group.setFixedHeight(60)
+        text_group.setFixedHeight(50)
         text_layout = QVBoxLayout(text_group)
-        text_layout.setContentsMargins(8, 8, 8, 8)
+        text_layout.setContentsMargins(6, 4, 6, 4)
         
         self.text_input = QLineEdit()
         self.text_input.setPlaceholderText("请输入水印文本...")
@@ -52,9 +54,9 @@ class TextWatermarkPanel(QWidget):
         
         # 字体大小
         size_group = QGroupBox("字体大小")
-        size_group.setFixedHeight(60)
+        size_group.setFixedHeight(50)
         size_layout = QHBoxLayout(size_group)
-        size_layout.setContentsMargins(8, 8, 8, 8)
+        size_layout.setContentsMargins(6, 4, 6, 4)
         
         size_layout.addWidget(QLabel("大小:"))
         
@@ -72,9 +74,9 @@ class TextWatermarkPanel(QWidget):
         
         # 字体选择
         font_group = QGroupBox("字体设置")
-        font_group.setFixedHeight(120)
+        font_group.setFixedHeight(90)
         font_layout = QVBoxLayout(font_group)
-        font_layout.setContentsMargins(8, 8, 8, 8)
+        font_layout.setContentsMargins(8, 6, 8, 6)
         font_layout.setSpacing(4)
         
         # 字体家族选择
@@ -89,37 +91,33 @@ class TextWatermarkPanel(QWidget):
         
         font_layout.addLayout(family_layout)
         
-        # 字体样式选择
-        style_layout = QHBoxLayout()
+        # 字体样式和颜色选择（合并到一行）
+        style_color_layout = QHBoxLayout()
         
         self.bold_checkbox = QCheckBox("粗体")
         self.italic_checkbox = QCheckBox("斜体")
         
-        style_layout.addWidget(self.bold_checkbox)
-        style_layout.addWidget(self.italic_checkbox)
-        style_layout.addStretch()
+        style_color_layout.addWidget(self.bold_checkbox)
+        style_color_layout.addWidget(self.italic_checkbox)
         
-        font_layout.addLayout(style_layout)
-        
-        # 文字颜色
-        color_layout = QHBoxLayout()
-        color_layout.addWidget(QLabel("颜色:"))
+        # 添加颜色选择到右侧
+        style_color_layout.addWidget(QLabel(" 颜色:"))
         
         self.color_button = QPushButton()
         self.color_button.setFixedSize(60, 24)
         self.color_button.setStyleSheet("background-color: rgb(255, 255, 255); border: 1px solid #999;")
         self.current_color = QColor(255, 255, 255)
         
-        color_layout.addWidget(self.color_button)
-        color_layout.addStretch()
+        style_color_layout.addWidget(self.color_button)
+        style_color_layout.addStretch()
         
-        font_layout.addLayout(color_layout)
+        font_layout.addLayout(style_color_layout)
         
         # 阴影效果
         shadow_group = QGroupBox("阴影效果")
-        shadow_group.setFixedHeight(80)
+        shadow_group.setFixedHeight(75)
         shadow_layout = QVBoxLayout(shadow_group)
-        shadow_layout.setContentsMargins(8, 8, 8, 8)
+        shadow_layout.setContentsMargins(8, 6, 8, 6)
         shadow_layout.setSpacing(4)
         
         # 启用阴影复选框
@@ -156,9 +154,9 @@ class TextWatermarkPanel(QWidget):
         
         # 描边效果
         stroke_group = QGroupBox("描边效果")
-        stroke_group.setFixedHeight(80)
+        stroke_group.setFixedHeight(75)
         stroke_layout = QVBoxLayout(stroke_group)
-        stroke_layout.setContentsMargins(8, 8, 8, 8)
+        stroke_layout.setContentsMargins(8, 6, 8, 6)
         stroke_layout.setSpacing(4)
         
         # 启用描边复选框
@@ -188,19 +186,19 @@ class TextWatermarkPanel(QWidget):
         
         # 不透明度
         opacity_group = QGroupBox("不透明度")
-        opacity_group.setFixedHeight(60)
+        opacity_group.setFixedHeight(50)
         opacity_layout = QHBoxLayout(opacity_group)
-        opacity_layout.setContentsMargins(8, 8, 8, 8)
+        opacity_layout.setContentsMargins(6, 4, 6, 4)
         
         opacity_layout.addWidget(QLabel("不透明度:"))
         
         self.opacity_slider = QSlider(Qt.Horizontal)
         self.opacity_slider.setRange(0, 100)
-        self.opacity_slider.setValue(70)
+        self.opacity_slider.setValue(100)
         
         self.opacity_spinbox = QSpinBox()
         self.opacity_spinbox.setRange(0, 100)
-        self.opacity_spinbox.setValue(70)
+        self.opacity_spinbox.setValue(100)
         self.opacity_spinbox.setSuffix("%")
         self.opacity_spinbox.setFixedWidth(60)
         
@@ -318,9 +316,9 @@ class TextWatermarkPanel(QWidget):
         
         # 旋转角度
         rotation_group = QGroupBox("旋转角度")
-        rotation_group.setFixedHeight(60)
+        rotation_group.setFixedHeight(50)
         rotation_layout = QHBoxLayout(rotation_group)
-        rotation_layout.setContentsMargins(8, 8, 8, 8)
+        rotation_layout.setContentsMargins(6, 4, 6, 4)
         
         rotation_layout.addWidget(QLabel("角度:"))
         
@@ -336,15 +334,6 @@ class TextWatermarkPanel(QWidget):
         rotation_layout.addWidget(self.rotation_slider)
         rotation_layout.addWidget(self.rotation_spinbox)
         
-        # 控制按钮
-        button_layout = QHBoxLayout()
-        
-        self.reset_button = QPushButton("重置")
-        self.reset_button.setFixedWidth(80)
-        
-        button_layout.addStretch()
-        button_layout.addWidget(self.reset_button)
-        
         # 添加到主布局
         layout.addWidget(text_group)
         layout.addWidget(size_group)
@@ -354,7 +343,6 @@ class TextWatermarkPanel(QWidget):
         layout.addWidget(opacity_group)
         layout.addWidget(position_group)
         layout.addWidget(rotation_group)
-        layout.addLayout(button_layout)
         layout.addStretch()
     
     def init_fonts(self):
@@ -415,8 +403,6 @@ class TextWatermarkPanel(QWidget):
         self.rotation_spinbox.valueChanged.connect(self.rotation_slider.setValue)
         self.rotation_slider.valueChanged.connect(self.on_rotation_changed)
         
-        # 重置按钮
-        self.reset_button.clicked.connect(self.reset_watermark)
     
     def on_text_changed(self, text: str):
         """文本改变事件"""
@@ -586,14 +572,14 @@ class TextWatermarkPanel(QWidget):
         self.italic_checkbox.setChecked(False)
         self.current_color = QColor(255, 255, 255)
         self.color_button.setStyleSheet("background-color: rgb(255, 255, 255); border: 1px solid #999;")
-        self.opacity_slider.setValue(70)
+        self.opacity_slider.setValue(100)
         self.preset_mode_radio.setChecked(True)
         self.position_buttons.button(4).setChecked(True)  # 选择中心位置
         self.rotation_slider.setValue(0)
         
         # 重置水印对象
         self.text_watermark = TextWatermark()
-        self.text_watermark.set_transparency(70)
+        self.text_watermark.set_transparency(100)
         
         self.update_position_mode()
         self.watermark_changed.emit()
@@ -711,7 +697,7 @@ class ImageWatermarkPanel(QWidget):
         """初始化UI"""
         layout = QVBoxLayout(self)
         layout.setContentsMargins(8, 8, 8, 8)
-        layout.setSpacing(8)
+        layout.setSpacing(6)
         
         # 图片选择
         image_group = QGroupBox("水印图片")
@@ -758,19 +744,19 @@ class ImageWatermarkPanel(QWidget):
         
         # 不透明度
         opacity_group = QGroupBox("不透明度")
-        opacity_group.setFixedHeight(60)
+        opacity_group.setFixedHeight(50)
         opacity_layout = QHBoxLayout(opacity_group)
-        opacity_layout.setContentsMargins(8, 8, 8, 8)
+        opacity_layout.setContentsMargins(6, 4, 6, 4)
         
         opacity_layout.addWidget(QLabel("不透明度:"))
         
         self.opacity_slider = QSlider(Qt.Horizontal)
         self.opacity_slider.setRange(0, 100)
-        self.opacity_slider.setValue(70)
+        self.opacity_slider.setValue(100)
         
         self.opacity_spinbox = QSpinBox()
         self.opacity_spinbox.setRange(0, 100)
-        self.opacity_spinbox.setValue(70)
+        self.opacity_spinbox.setValue(100)
         self.opacity_spinbox.setSuffix("%")
         self.opacity_spinbox.setFixedWidth(60)
         
@@ -888,9 +874,9 @@ class ImageWatermarkPanel(QWidget):
         
         # 旋转角度
         rotation_group = QGroupBox("旋转角度")
-        rotation_group.setFixedHeight(60)
+        rotation_group.setFixedHeight(50)
         rotation_layout = QHBoxLayout(rotation_group)
-        rotation_layout.setContentsMargins(8, 8, 8, 8)
+        rotation_layout.setContentsMargins(6, 4, 6, 4)
         
         rotation_layout.addWidget(QLabel("角度:"))
         
@@ -906,23 +892,12 @@ class ImageWatermarkPanel(QWidget):
         rotation_layout.addWidget(self.rotation_slider)
         rotation_layout.addWidget(self.rotation_spinbox)
         
-        # 控制按钮
-        button_layout = QHBoxLayout()
-        
-        self.clear_button = QPushButton("清除图片")
-        self.clear_button.setFixedWidth(80)
-        self.clear_button.setEnabled(False)
-        
-        button_layout.addStretch()
-        button_layout.addWidget(self.clear_button)
-        
         # 添加到主布局
         layout.addWidget(image_group)
         layout.addWidget(scale_group)
         layout.addWidget(opacity_group)
         layout.addWidget(position_group)
         layout.addWidget(rotation_group)
-        layout.addLayout(button_layout)
         layout.addStretch()
     
     def connect_signals(self):
@@ -955,8 +930,6 @@ class ImageWatermarkPanel(QWidget):
         self.rotation_spinbox.valueChanged.connect(self.rotation_slider.setValue)
         self.rotation_slider.valueChanged.connect(self.on_rotation_changed)
         
-        # 清除按钮
-        self.clear_button.clicked.connect(self.clear_watermark_image)
     
     def select_watermark_image(self):
         """选择水印图片"""
@@ -970,7 +943,6 @@ class ImageWatermarkPanel(QWidget):
                 import os
                 filename = os.path.basename(file_path)
                 self.preview_label.setText(f"已选择: {filename}")
-                self.clear_button.setEnabled(True)
                 self.watermark_changed.emit()
             else:
                 QMessageBox.warning(self, "错误", "无法加载选择的图片文件")
@@ -979,7 +951,6 @@ class ImageWatermarkPanel(QWidget):
         """清除水印图片"""
         self.image_watermark = ImageWatermark()
         self.preview_label.setText("未选择图片")
-        self.clear_button.setEnabled(False)
         self.watermark_changed.emit()
     
     def on_scale_changed(self, value: int):
@@ -1044,7 +1015,7 @@ class ImageWatermarkPanel(QWidget):
         Returns:
             ImageWatermark: 图片水印对象
         """
-        return self.image_watermark if self.image_watermark.watermark_image is not None else None
+        return self.image_watermark
     
     def update_position_from_preview(self, rel_x, rel_y):
         """从预览拖拽更新位置"""
@@ -1071,6 +1042,34 @@ class ImageWatermarkPanel(QWidget):
         
         # 发送水印变更信号以刷新预览
         self.watermark_changed.emit()
+    
+    def update_ui_from_watermark(self):
+        """从水印对象更新UI控件"""
+        # 更新缩放
+        scale_percent = int(self.image_watermark.scale * 100)
+        self.scale_slider.setValue(scale_percent)
+        
+        # 更新透明度
+        self.opacity_slider.setValue(self.image_watermark.transparency)
+        
+        # 更新位置
+        x, y = self.image_watermark.position
+        self.x_spinbox.setValue(int(x * 100))
+        self.y_spinbox.setValue(int(y * 100))
+        
+        # 更新旋转角度
+        self.rotation_slider.setValue(int(self.image_watermark.rotation))
+        
+        # 更新图片预览
+        if self.image_watermark.watermark_image is not None:
+            import os
+            if hasattr(self.image_watermark, 'image_path') and self.image_watermark.image_path:
+                filename = os.path.basename(self.image_watermark.image_path)
+                self.preview_label.setText(f"已选择: {filename}")
+            else:
+                self.preview_label.setText("已加载图片")
+        else:
+            self.preview_label.setText("未选择图片")
 
 
 class WatermarkControlPanel(QWidget):
@@ -1081,13 +1080,15 @@ class WatermarkControlPanel(QWidget):
     
     def __init__(self):
         super().__init__()
+        self.config_manager = ConfigManager()
         self.init_ui()
         self.connect_signals()
     
     def init_ui(self):
         """初始化UI"""
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setContentsMargins(5, 5, 5, 5)
+        layout.setSpacing(5)
         
         # 创建标签页
         self.tab_widget = QTabWidget()
@@ -1101,6 +1102,77 @@ class WatermarkControlPanel(QWidget):
         self.tab_widget.addTab(self.image_panel, "图片水印")
         
         layout.addWidget(self.tab_widget)
+        
+        # 分隔线
+        separator = QFrame()
+        separator.setFrameShape(QFrame.HLine)
+        separator.setFrameShadow(QFrame.Sunken)
+        layout.addWidget(separator)
+        
+        # 模板管理区域（移到底部）
+        template_group = QGroupBox("模板管理")
+        template_group.setFixedHeight(70)
+        template_layout = QHBoxLayout(template_group)
+        template_layout.setContentsMargins(8, 8, 8, 8)
+        
+        # 模板管理按钮
+        self.save_template_btn = QPushButton("保存")
+        self.save_template_btn.setToolTip("将当前水印设置保存为模板")
+        self.save_template_btn.clicked.connect(self.save_template)
+        self.save_template_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #28a745;
+                color: white;
+                border: none;
+                padding: 6px 12px;
+                border-radius: 4px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #218838;
+            }
+        """)
+        template_layout.addWidget(self.save_template_btn)
+        
+        self.load_template_btn = QPushButton("加载")
+        self.load_template_btn.setToolTip("从已保存的模板中加载设置")
+        self.load_template_btn.clicked.connect(self.load_template)
+        self.load_template_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #007bff;
+                color: white;
+                border: none;
+                padding: 6px 12px;
+                border-radius: 4px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #0056b3;
+            }
+        """)
+        template_layout.addWidget(self.load_template_btn)
+        
+        self.reset_btn = QPushButton("重置")
+        self.reset_btn.setToolTip("重置当前水印设置为默认值")
+        self.reset_btn.clicked.connect(self.reset_current_watermark)
+        self.reset_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #dc3545;
+                color: white;
+                border: none;
+                padding: 6px 12px;
+                border-radius: 4px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #c82333;
+            }
+        """)
+        template_layout.addWidget(self.reset_btn)
+        
+        template_layout.addStretch()
+        
+        layout.addWidget(template_group)
     
     def connect_signals(self):
         """连接信号槽"""
@@ -1145,3 +1217,110 @@ class WatermarkControlPanel(QWidget):
             self.text_panel.update_position_from_preview(rel_x, rel_y)
         else:  # 图片水印
             self.image_panel.update_position_from_preview(rel_x, rel_y)
+    
+    def save_template(self):
+        """保存当前设置为模板"""
+        dialog = SaveTemplateDialog(self)
+        if dialog.exec() == QDialog.Accepted:
+            template_info = dialog.get_template_info()
+            
+            # 获取当前水印设置
+            text_watermark = self.text_panel.get_watermark()
+            image_watermark = self.image_panel.get_watermark()
+            active_watermark = self.get_watermark_type()
+            
+            # 保存模板
+            success = self.config_manager.save_template(
+                name=template_info["name"],
+                description=template_info["description"],
+                text_watermark=text_watermark,
+                image_watermark=image_watermark,
+                active_watermark=active_watermark
+            )
+            
+            if success:
+                QMessageBox.information(self, "成功", f"模板 '{template_info['name']}' 保存成功！")
+            else:
+                QMessageBox.warning(self, "错误", "保存模板失败！")
+    
+    def load_template(self):
+        """加载模板"""
+        dialog = TemplateDialog(self)
+        dialog.template_loaded.connect(self.apply_template)
+        dialog.exec()
+    
+    def apply_template(self, template_name: str):
+        """应用模板设置"""
+        template_data = self.config_manager.load_template(template_name)
+        if template_data:
+            # 应用模板到水印对象
+            active_watermark = self.config_manager.apply_template_to_watermarks(
+                template_data,
+                self.text_panel.get_watermark(),
+                self.image_panel.get_watermark()
+            )
+            
+            # 更新UI显示
+            self.text_panel.update_ui_from_watermark()
+            self.image_panel.update_ui_from_watermark()
+            
+            # 切换到对应的标签页
+            if active_watermark == "text":
+                self.tab_widget.setCurrentIndex(0)
+            else:
+                self.tab_widget.setCurrentIndex(1)
+            
+            # 触发水印更新信号
+            self.watermark_changed.emit()
+    
+    def reset_current_watermark(self):
+        """重置当前激活的水印设置"""
+        current_index = self.tab_widget.currentIndex()
+        if current_index == 0:  # 文本水印
+            self.text_panel.reset_watermark()
+        else:  # 图片水印
+            self.image_panel.clear_watermark_image()
+    
+    def save_last_settings(self):
+        """保存最后使用的设置"""
+        text_watermark = self.text_panel.get_watermark()
+        image_watermark = self.image_panel.get_watermark()
+        active_watermark = self.get_watermark_type()
+        
+        self.config_manager.save_last_settings(
+            text_watermark=text_watermark,
+            image_watermark=image_watermark,
+            active_watermark=active_watermark
+        )
+    
+    def load_last_settings(self):
+        """加载最后使用的设置"""
+        settings_data = self.config_manager.load_last_settings()
+        if settings_data:
+            # 应用设置到水印对象
+            active_watermark = self.config_manager.apply_template_to_watermarks(
+                settings_data,
+                self.text_panel.get_watermark(),
+                self.image_panel.get_watermark()
+            )
+            
+            # 更新UI显示
+            self.text_panel.update_ui_from_watermark()
+            self.image_panel.update_ui_from_watermark()
+            
+            # 切换到对应的标签页
+            if active_watermark == "text":
+                self.tab_widget.setCurrentIndex(0)
+            else:
+                self.tab_widget.setCurrentIndex(1)
+            
+            # 触发水印更新信号
+            self.watermark_changed.emit()
+    
+    def reset_current_watermark(self):
+        """重置当前激活的水印设置"""
+        current_index = self.tab_widget.currentIndex()
+        if current_index == 0:  # 文本水印
+            self.text_panel.reset_watermark()
+        else:  # 图片水印
+            self.image_panel.clear_watermark_image()
