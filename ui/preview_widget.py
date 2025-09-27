@@ -459,6 +459,15 @@ class PreviewWidget(QWidget):
             else:
                 self.show_error(f"错误: 加载图片失败 - {os.path.basename(image_path)}: {error_msg}")
     
+    def _clean_png_for_qt(self, pil_image):
+        """清理PNG图片以避免Qt的ICC颜色空间警告"""
+        if pil_image.mode == 'RGBA':
+            # 移除ICC profile以避免Qt警告
+            clean_image = Image.new('RGBA', pil_image.size, (0, 0, 0, 0))
+            clean_image.paste(pil_image, (0, 0))
+            return clean_image
+        return pil_image
+    
     def pil_to_qpixmap(self, pil_image) -> QPixmap:
         """将PIL图片转换为QPixmap
         
@@ -475,14 +484,23 @@ class PreviewWidget(QWidget):
             # 使用临时字节流的方法，这样更可靠
             buffer = io.BytesIO()
             
+            # 清理图片以避免Qt警告
+            clean_image = self._clean_png_for_qt(pil_image)
+            
             # 根据模式选择保存格式
-            if pil_image.mode == 'RGBA':
-                pil_image.save(buffer, format='PNG')
+            if clean_image.mode == 'RGBA':
+                # 对于RGBA模式，保存为PNG以保持透明通道
+                clean_image.save(buffer, format='PNG', optimize=True)
+            elif clean_image.mode in ('LA', 'P'):
+                # 灰度+透明度或调色板模式，转换为RGBA后保存为PNG
+                if clean_image.mode != 'RGBA':
+                    clean_image = clean_image.convert('RGBA')
+                clean_image.save(buffer, format='PNG', optimize=True)
             else:
-                # 转换为RGB并保存为JPEG
-                if pil_image.mode != 'RGB':
-                    pil_image = pil_image.convert('RGB')
-                pil_image.save(buffer, format='JPEG', quality=95)
+                # 其他模式转换为RGB并保存为JPEG
+                if clean_image.mode != 'RGB':
+                    clean_image = clean_image.convert('RGB')
+                clean_image.save(buffer, format='JPEG', quality=95)
             
             buffer.seek(0)
             

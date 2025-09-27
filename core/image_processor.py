@@ -53,14 +53,23 @@ class ImageProcessor:
                 return None
                 
             image = Image.open(file_path)
-            # 转换为RGB模式（如果需要）
-            if image.mode in ('RGBA', 'LA', 'P'):
-                # 保持透明通道
+            # 正确处理透明通道
+            if image.mode in ('LA', 'P'):
+                # 调色板模式或灰度+透明度模式转换为RGBA
                 if image.mode == 'P' and 'transparency' in image.info:
                     image = image.convert('RGBA')
-                elif image.mode != 'RGBA':
+                elif image.mode == 'LA':
                     image = image.convert('RGBA')
-            elif image.mode not in ('RGB', 'RGBA'):
+                else:
+                    image = image.convert('RGBA')
+            elif image.mode == 'RGBA':
+                # 已经是RGBA模式，保持不变
+                pass
+            elif image.mode in ('RGB', 'L'):
+                # RGB或灰度模式，转换为RGB
+                image = image.convert('RGB')
+            else:
+                # 其他模式转换为RGB
                 image = image.convert('RGB')
                 
             return image

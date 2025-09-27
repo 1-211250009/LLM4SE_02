@@ -959,8 +959,23 @@ class ImageWatermark:
         """
         try:
             self.original_watermark = Image.open(image_path)
-            # 确保为RGBA模式以支持透明通道
-            if self.original_watermark.mode != 'RGBA':
+            # 正确处理透明通道
+            if self.original_watermark.mode in ('LA', 'P'):
+                # 调色板模式或灰度+透明度模式转换为RGBA
+                if self.original_watermark.mode == 'P' and 'transparency' in self.original_watermark.info:
+                    self.original_watermark = self.original_watermark.convert('RGBA')
+                elif self.original_watermark.mode == 'LA':
+                    self.original_watermark = self.original_watermark.convert('RGBA')
+                else:
+                    self.original_watermark = self.original_watermark.convert('RGBA')
+            elif self.original_watermark.mode == 'RGBA':
+                # 已经是RGBA模式，保持不变
+                pass
+            elif self.original_watermark.mode in ('RGB', 'L'):
+                # RGB或灰度模式，转换为RGBA以支持透明度
+                self.original_watermark = self.original_watermark.convert('RGBA')
+            else:
+                # 其他模式转换为RGBA
                 self.original_watermark = self.original_watermark.convert('RGBA')
             
             # 初始化当前水印图像
