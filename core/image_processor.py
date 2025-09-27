@@ -105,12 +105,27 @@ class ImageProcessor:
                 
             file_size = os.path.getsize(file_path)
             
+            # 获取格式信息，如果PIL无法识别则从文件扩展名获取
+            format_info = image.format
+            if format_info is None:
+                # 从文件扩展名获取格式
+                _, ext = os.path.splitext(file_path.lower())
+                format_map = {
+                    '.jpg': 'JPEG',
+                    '.jpeg': 'JPEG', 
+                    '.png': 'PNG',
+                    '.bmp': 'BMP',
+                    '.tiff': 'TIFF',
+                    '.tif': 'TIFF'
+                }
+                format_info = format_map.get(ext, 'Unknown')
+            
             return {
                 'path': file_path,
                 'filename': os.path.basename(file_path),
                 'size': image.size,  # (width, height)
                 'mode': image.mode,
-                'format': image.format,
+                'format': format_info,
                 'file_size': file_size,
                 'has_transparency': image.mode in ('RGBA', 'LA') or 'transparency' in image.info
             }

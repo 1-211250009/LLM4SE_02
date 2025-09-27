@@ -442,9 +442,12 @@ class PreviewWidget(QWidget):
             
             # 更新信息显示
             filename = os.path.basename(image_path)
-            size_info = f"{image.size[0]} × {image.size[1]}"
-            watermark_info = " [已添加水印]" if self.current_watermark else ""
-            self.image_info_label.setText(f"{filename} - {size_info}{watermark_info}")
+            if image is not None:
+                size_info = f"{image.size[0]} × {image.size[1]}"
+                watermark_info = " [已添加水印]" if self.current_watermark else ""
+                self.image_info_label.setText(f"{filename} - {size_info}{watermark_info}")
+            else:
+                self.image_info_label.setText(f"{filename} - 加载失败")
             
         except FileNotFoundError:
             self.show_error(f"错误: 文件不存在 - {image_path}")

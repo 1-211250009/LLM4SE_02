@@ -113,6 +113,9 @@ class ImageListItem(QWidget):
         size_info = f"{self.image_info['size'][0]} × {self.image_info['size'][1]}"
         file_size = self.format_file_size(self.image_info['file_size'])
         format_info = self.image_info.get('format', 'Unknown')
+        # 确保format_info不为None
+        if format_info is None:
+            format_info = 'Unknown'
         
         info_text = f"尺寸: {size_info}\n大小: {file_size}\n格式: {format_info}"
         if self.image_info.get('has_transparency', False):
