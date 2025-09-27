@@ -89,4 +89,35 @@ Photo Watermark 2
 
 
 
-提交在 GitHub 上，并提供可以直接下载运行的 MacOS 文件（一个 release，以最新的 release 为准，请保证该程序可运行）。保留尽可能多的、详细的GitHub 提交记录。
+## 项目发布
+
+### GitHub 仓库
+项目已提交到 GitHub: https://github.com/1-211250009/LLM4SE_02
+
+### 提交记录
+项目保留了详细的提交记录，包括：
+- 51d409d fix: 修复图片格式显示Unknown问题，添加扩展名备用识别
+- 163ccb4 fix: 修复PNG透明通道显示异常问题
+- 76a5e3b feat: 完善异常处理机制
+- 9c20a3f feat: 实现水印模板保存与加载功能
+- 40862f2 feat: 实现水印拖拽功能和边界约束优化
+- 861af29 feat: 完成阶段4文本水印高级功能，包括字体选择、颜色调色板、粗体斜体效果、阴影描边功能
+- 4a20f9b feat: 支持图片水印功能
+- 966756a feat: 添加不透明度数值输入框，保持旋转功能稳定
+- c8d9220 fix: 修复九宫格点按钮、透明度和中文字体支持
+- 411db6e feat: 完善水印控制面板，添加九宫格位置选择和不透明度
+
+### MacOS 可执行文件
+项目已成功打包为 MacOS 应用程序：
+- 文件名: `PhotoWatermark2.app`
+- 压缩包: `PhotoWatermark2_MacOS.zip` (36MB)
+- 支持系统: macOS (ARM64)
+
+#### 安装和使用说明
+1. 从 GitHub Releases 下载 `PhotoWatermark2_MacOS.zip`
+2. 解压缩文件
+3. 将 `PhotoWatermark2.app` 拖拽到 Applications 文件夹
+4. 首次运行时，如果遇到安全提示，请在"系统偏好设置 > 安全性与隐私"中允许运行
+
+### GitHub Release
+请访问 [GitHub Releases](https://github.com/1-211250009/LLM4SE_02/releases) 下载最新的 MacOS 可执行文件。
